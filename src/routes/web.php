@@ -7,12 +7,22 @@ use App\Http\Controllers\Auth\SsoController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DatasetController;
 use App\Http\Controllers\ExcelTemplateController;
+use App\Http\Controllers\ExportController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MyAiController;
+use App\Http\Controllers\RenderController;
 use App\Http\Controllers\ReportDraftController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'landing'])->name('landing');
+
+// หน้า render สำหรับ Headless Chrome — ลิงก์ลงนามอายุ 5 นาที ไม่ต้องล็อกอิน
+Route::middleware('signed')->prefix('render')->name('render.')->group(function () {
+    Route::get('/{version}/report', [RenderController::class, 'report'])->name('report');
+    Route::get('/{version}/infographic', [RenderController::class, 'infographic'])->name('infographic');
+    Route::get('/{version}/dashboard', [RenderController::class, 'dashboard'])->name('dashboard');
+    Route::get('/{version}/image', [RenderController::class, 'image'])->name('image');
+});
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [SsoController::class, 'showLogin'])->name('login');
@@ -51,6 +61,10 @@ Route::middleware('auth')->group(function () {
     Route::put('/dashboards/{dashboard}/infographic', [DashboardController::class, 'updateInfographic'])->name('dashboards.infographic.update');
     Route::post('/dashboards/{dashboard}/image', [DashboardController::class, 'uploadImage'])->name('dashboards.image.upload');
     Route::get('/dashboards/{dashboard}/image', [DashboardController::class, 'image'])->name('dashboards.image');
+    Route::post('/dashboards/{dashboard}/exports', [ExportController::class, 'store'])->name('dashboards.exports.store')->middleware('throttle:20,10');
+    Route::get('/exports/{export}', [ExportController::class, 'show'])->name('exports.show');
+    Route::post('/exports/{export}/retry', [ExportController::class, 'retry'])->name('exports.retry');
+    Route::get('/exports/{export}/download', [ExportController::class, 'download'])->name('exports.download');
 
     Route::get('/me/ai', [MyAiController::class, 'show'])->name('me.ai');
     Route::post('/me/ai', [MyAiController::class, 'store'])->name('me.ai.store')->middleware('throttle:10,1');

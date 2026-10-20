@@ -1,0 +1,7 @@
+/* Sarabun (SIL Open Font License) — เก็บไฟล์ไว้ในโปรเจกต์ ไม่โหลดจาก CDN
+   เพื่อให้หน้าเว็บและไฟล์ที่ส่งออก (PDF/ภาพ) ใช้ฟอนต์เดียวกันทั้ง Docker และ IIS (spec §2, §9.4) */
+@font-face { font-family: "Sarabun"; font-weight: 400; font-style: normal; font-display: swap; src: url("../fonts/Sarabun-Regular.ttf") format("truetype"); }
+@font-face { font-family: "Sarabun"; font-weight: 500; font-style: normal; font-display: swap; src: url("../fonts/Sarabun-Medium.ttf") format("truetype"); }
+@font-face { font-family: "Sarabun"; font-weight: 600; font-style: normal; font-display: swap; src: url("../fonts/Sarabun-SemiBold.ttf") format("truetype"); }
+@font-face { font-family: "Sarabun"; font-weight: 700; font-style: normal; font-display: swap; src: url("../fonts/Sarabun-Bold.ttf") format("truetype"); }
+@font-face { font-family: "Sarabun"; font-weight: 800; font-style: normal; font-display: swap; src: url("../fonts/Sarabun-ExtraBold.ttf") format("truetype"); }

@@ -27,9 +27,26 @@ services:
   worker:
     build: ./docker/php
     command: php artisan queue:work --tries=1 --sleep=2 --timeout=300
+    # รันเป็น www-data เพื่อให้ไฟล์ที่ worker สร้าง (ไฟล์ส่งออก) php-fpm อ่านได้ — Laravel เก็บ storage/app/private แบบ 0700
+    user: www-data
+    environment:
+      HOME: /tmp
     volumes:
       - ./src:/var/www/html
       - ./samples:/samples:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  scheduler:
+    build: ./docker/php
+    command: php artisan schedule:work
+    user: www-data
+    environment:
+      HOME: /tmp
+    volumes:
+      - ./src:/var/www/html
     depends_on:
       db:
         condition: service_healthy

@@ -38,6 +38,7 @@ class DashboardController extends Controller
             'canEdit' => $this->canEdit($request, $dashboard),
             'themes' => SpecValidator::THEMES,
             'aiAvailable' => $ai->availability($request->user())['available'],
+            'exports' => $this->canEdit($request, $dashboard) ? $dashboard->exports()->latest()->limit(5)->get() : collect(),
         ]);
     }
 

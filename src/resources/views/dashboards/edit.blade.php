@@ -3,9 +3,9 @@
 @section('title', 'แก้ไข: '.$version->spec['title'])
 
 @push('head')
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/gridstack.js/10.3.1/gridstack.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gridstack.js/10.3.1/gridstack-all.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+<link rel="stylesheet" href="{{ asset('vendor/gridstack.min.css') }}">
+<script src="{{ asset('vendor/gridstack-all.min.js') }}"></script>
+<script src="{{ asset('vendor/echarts.min.js') }}"></script>
 @endpush
 
 @section('body')

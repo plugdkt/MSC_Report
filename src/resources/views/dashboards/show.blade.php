@@ -3,7 +3,7 @@
 @section('title', $spec['title'])
 
 @push('head')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+<script src="{{ asset('vendor/echarts.min.js') }}"></script>
 @endpush
 
 @php($summary = $version->executive_summary)
@@ -35,7 +35,34 @@
                     <a class="btn btn-outline" href="{{ route('dashboards.edit', $dashboard) }}">✎ แก้ไข/จัดหน้า</a>
                 @endif
                 @if (! empty($spec['infographic']['enabled']))
-                    <a class="btn btn-primary" href="{{ route('dashboards.infographic', $dashboard) }}">อินโฟกราฟิก 1 หน้า</a>
+                    <a class="btn btn-outline" href="{{ route('dashboards.infographic', $dashboard) }}">อินโฟกราฟิก 1 หน้า</a>
+                @endif
+                @if ($canEdit)
+                    <details class="export-menu">
+                        <summary class="btn btn-primary">⭳ ส่งออก ▾</summary>
+                        <form class="export-list" method="POST" action="{{ route('dashboards.exports.store', $dashboard) }}">
+                            @csrf
+                            <b>รายงานฉบับเต็ม</b>
+                            <div class="row">
+                                <select name="orientation" aria-label="ทิศทางกระดาษ"><option value="landscape">A4 แนวนอน</option><option value="portrait">A4 แนวตั้ง</option></select>
+                                <button class="btn btn-outline" type="submit" name="target" value="report" formnovalidate onclick="this.form.format.value='pdf'">PDF</button>
+                            </div>
+                            <p class="muted hint">มีสารบัญคลิกได้ บุ๊กมาร์ก ตารางข้อมูลท้ายเล่ม เลขหน้า</p>
+                            <b>ภาพ (JPEG / PNG)</b>
+                            <div class="row">
+                                <select name="scale" aria-label="ความละเอียด"><option value="1">ปกติ</option><option value="2" selected>ชัดมาก 2×</option><option value="3">สูงสุด 3×</option></select>
+                            </div>
+                            @if (! empty($spec['infographic']['enabled']))
+                                <div class="row"><span>อินโฟกราฟิก 1 หน้า</span>
+                                    <button class="btn btn-ghost" type="submit" name="target" value="infographic" onclick="this.form.format.value='jpeg'">JPEG</button>
+                                    <button class="btn btn-ghost" type="submit" name="target" value="infographic" onclick="this.form.format.value='png'">PNG</button></div>
+                            @endif
+                            <div class="row"><span>Dashboard ทั้งหน้า</span>
+                                <button class="btn btn-ghost" type="submit" name="target" value="dashboard" onclick="this.form.format.value='jpeg'">JPEG</button>
+                                <button class="btn btn-ghost" type="submit" name="target" value="dashboard" onclick="this.form.format.value='png'">PNG</button></div>
+                            <input type="hidden" name="format" value="pdf">
+                        </form>
+                    </details>
                 @endif
             </div>
         </div>
@@ -64,6 +91,19 @@
                 </div>
             @endif
         </section>
+
+        @if ($exports->isNotEmpty())
+            <section class="card" style="margin-bottom:1.2rem;padding:.8rem 1.2rem">
+                <h2 style="font-size:1.05rem;margin:0 0 .4rem">ไฟล์ที่ส่งออกล่าสุด</h2>
+                <ul class="quality">
+                    @foreach ($exports as $ex)
+                        <li class="q-info"><span class="ic">{{ $ex->format === 'pdf' ? 'P' : 'I' }}</span>
+                            <span style="flex:1"><a href="{{ route('exports.show', $ex) }}">{{ $ex->label() }}</a> <span class="muted">· {{ \App\Support\Thai::date($ex->created_at, true) }} · {{ $ex->statusLabel() }}</span></span>
+                            @if ($ex->isReady())<a class="btn btn-ghost" style="min-height:2rem;padding:.1rem .8rem" href="{{ route('exports.download', $ex) }}">ดาวน์โหลด</a>@endif</li>
+                    @endforeach
+                </ul>
+            </section>
+        @endif
 
         <div class="dash-board theme-{{ $spec['theme'] ?? 'org' }}" id="dash"></div>
     </div>

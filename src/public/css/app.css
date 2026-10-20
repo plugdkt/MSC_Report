@@ -290,3 +290,13 @@ code { background: #f1f3f7; padding: .05rem .35rem; border-radius: 5px; font-siz
 .ig-p { font-size: 22px; color: #4a5568; }
 .ig-p b { font-size: 32px; margin-left: 6px; }
 .ig-src { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; font-size: 17px; color: #6b778c; }
+
+/* เมนูส่งออก */
+.export-menu { position: relative; }
+.export-menu > summary { list-style: none; cursor: pointer; }
+.export-menu > summary::-webkit-details-marker { display: none; }
+.export-list { position: absolute; right: 0; top: calc(100% + .5rem); z-index: 30; background: #fff; border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 1rem 1.1rem; min-width: 21rem; display: grid; gap: .5rem; }
+.export-list .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.export-list .row > span { flex: 1; min-width: 8rem; }
+.export-list .hint { margin: 0; font-size: .85rem; }
+@media (max-width: 700px) { .export-list { position: fixed; left: 16px; right: 16px; top: auto; bottom: 16px; min-width: 0; } }

@@ -47,8 +47,8 @@
           data: d.categories.map(function (c, i) { return { name: c, value: d.series[0].data[i] }; }) }] });
     }
     var horizontal = w.type === 'bar' && d.categories.length > 6;
-    var cat = { type: 'category', data: d.categories, axisLabel: { fontSize: fs, color: '#1b2330', width: horizontal ? 200 : 90, overflow: 'break', interval: 0 }, axisTick: { show: false } };
-    var val = { type: 'value', axisLabel: { fontSize: fs, formatter: function (v) { return Math.abs(v) >= 1e6 ? (v / 1e6).toLocaleString('th-TH', { maximumFractionDigits: 1 }) + ' ลบ.' : Number(v).toLocaleString('th-TH'); } }, splitLine: { lineStyle: { color: '#e6eaf0' } } };
+    var cat = { type: 'category', data: d.categories, axisLabel: { fontSize: fs, color: '#1b2330', width: horizontal ? 210 : 90, overflow: horizontal ? 'truncate' : 'break', ellipsis: '…', interval: 0 }, axisTick: { show: false } };
+    var val = { type: 'value', splitNumber: horizontal ? 4 : 5, axisLabel: { hideOverlap: true, fontSize: fs, formatter: function (v) { return Math.abs(v) >= 1e6 ? (v / 1e6).toLocaleString('th-TH', { maximumFractionDigits: 1 }) + ' ลบ.' : Number(v).toLocaleString('th-TH'); } }, splitLine: { lineStyle: { color: '#e6eaf0' } } };
     return Object.assign(base, {
       legend: d.series.length > 1 ? { top: 0, textStyle: { fontSize: fs } } : undefined,
       grid: { left: 8, right: 24, top: d.series.length > 1 ? 36 : 12, bottom: 8, containLabel: true },
@@ -61,8 +61,15 @@
     });
   }
 
+  // วาดกราฟลงใน box — opts.renderer = 'svg' สำหรับส่งออก (เวกเตอร์ คมทุกขนาด)
+  function drawChart(box, w, d, theme, opts) {
+    var chart = echarts.init(box, null, { renderer: (opts && opts.renderer) || 'canvas' });
+    chart.setOption(option(w, d, theme), true);
+    return { resize: function () { chart.resize(); }, rerender: function () { chart.setOption(option(w, d, theme), true); chart.resize(); }, dispose: function () { chart.dispose(); } };
+  }
+
   // วาด widget หนึ่งชิ้นลงใน element — คืน object ที่มี resize()
-  function renderWidget(el, w, d, theme) {
+  function renderWidget(el, w, d, theme, opts) {
     el.innerHTML = '';
     var h = document.createElement('h2'); h.className = 'w-title'; h.textContent = w.title; el.appendChild(h);
     if (!d) { var e = document.createElement('p'); e.className = 'muted'; e.textContent = 'ไม่มีข้อมูล'; el.appendChild(e); return null; }
@@ -90,10 +97,16 @@
       return null;
     }
     var box = document.createElement('div'); box.className = 'chart-box w-fill'; el.appendChild(box);
-    var chart = echarts.init(box);
-    chart.setOption(option(w, d, theme), true);
-    return { resize: function () { chart.resize(); }, rerender: function () { chart.setOption(option(w, d, theme), true); chart.resize(); }, dispose: function () { chart.dispose(); } };
+    return drawChart(box, w, d, theme, opts);
   }
 
-  window.MscDashboard = { renderWidget: renderWidget, fmt: fmt, themes: THEMES, esc: esc };
+  // สัญญาณให้ Headless Chrome เริ่มพิมพ์/จับภาพ: ฟอนต์โหลดแล้ว + วาดกราฟครบ + รอให้ layout นิ่ง
+  function markReady() {
+    var fonts = document.fonts ? document.fonts.ready : Promise.resolve();
+    fonts.then(function () { requestAnimationFrame(function () { requestAnimationFrame(function () { window.__READY__ = true; }); }); });
+  }
+
+  window.addEventListener('error', function (e) { window.__RENDER_ERROR__ = String(e.message || e); });
+
+  window.MscDashboard = { renderWidget: renderWidget, drawChart: drawChart, markReady: markReady, fmt: fmt, themes: THEMES, esc: esc };
 })();

@@ -1,6 +1,6 @@
 # spec.md — ระบบสรุปผลงานเจ้าหน้าที่ด้วย AI (AI Work Summary Dashboard)
 
-> เวอร์ชันเอกสาร: 0.11 (M0–M3 เสร็จ: แก้ไข Dashboard, บทสรุปที่ตรวจตัวเลข, อินโฟกราฟิก — ดู §11) · วันที่: 2026-10-20
+> เวอร์ชันเอกสาร: 0.12 (M0–M4 เสร็จ: ส่งออก PDF/JPEG/PNG ด้วย Headless Chrome — ดู §11 และ §9.3) · วันที่: 2026-10-20
 > สถานะ: Draft สำหรับเริ่มพัฒนา
 
 ---
@@ -795,8 +795,12 @@ services:
    </configuration>
    ```
 5. สิทธิ์ไฟล์: ให้ `IIS AppPool\<ชื่อ pool>` เขียนได้เฉพาะ `storage\` และ `bootstrap\cache\`
-6. ติดตั้ง **Google Chrome / Chromium** และตั้ง `CHROME_PATH` ใน `.env`, ติดตั้งฟอนต์ไทยในระบบ (หรือใช้ฟอนต์ในโปรเจกต์ผ่าน `@font-face`)
-7. **Queue worker** รันเป็น Windows Service ด้วย **NSSM**: `php artisan queue:work --tries=3 --max-time=3600`
+6. ติดตั้ง **Google Chrome** (เวอร์ชัน ≥ 114 เพื่อให้ PDF มีบุ๊กมาร์ก) แล้วตั้งใน `.env`:
+   - `CHROME_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe` · `CHROME_NO_SANDBOX=false` (บน Windows ไม่ต้องปิด sandbox)
+   - `EXPORT_INTERNAL_URL=http://localhost` (หรือชื่อเว็บไซต์ใน IIS ที่ binding ไว้บนเครื่องเดียวกัน) — Chrome ใช้เปิดหน้า render ภายในเครื่อง ไม่ออกอินเทอร์เน็ต; **ลิงก์ลงนามผูกกับ host นี้** จึงต้องตรงกับ binding ที่ IIS รับ
+   - ฟอนต์ในหน้า render ใช้ `public/fonts` (Sarabun) อยู่แล้ว · ส่วน **ท้ายกระดาษ PDF (เลขหน้า/ชื่อรายงาน)** ใช้ฟอนต์ระบบ จึงต้องติดตั้งฟอนต์ไทยบนเซิร์ฟเวอร์ (เช่น Sarabun, Tahoma, Leelawadee UI — Windows มี Tahoma/Leelawadee UI อยู่แล้ว)
+   - Application Pool ที่รัน queue worker ต้องเขียน `storage\` และโฟลเดอร์ temp ได้ (Chrome สร้าง profile ชั่วคราวใน temp ทุกงาน)
+7. **Queue worker** รันเป็น Windows Service ด้วย **NSSM**: `php artisan queue:work --tries=1 --timeout=300 --max-time=3600` (ไม่ retry งานส่งออก/นำเข้า เพื่อไม่ให้เปิด Chrome ซ้ำและเสีย token ซ้ำ) · ต้องรีสตาร์ท service หลังแก้โค้ด/`.env`
 8. **Scheduler**: Windows Task Scheduler รัน `php artisan schedule:run` ทุก 1 นาที
 9. HTTPS: ผูกใบรับรอง SSL ใน IIS + rule redirect HTTP→HTTPS
 10. Deploy script (PowerShell): `git pull` → `composer install --no-dev -o` → `php artisan migrate --force` → `php artisan config:cache route:cache view:cache` → restart worker service
@@ -853,7 +857,13 @@ services:
     - หลังแก้โค้ด/config ต้อง `docker compose restart worker` (queue worker โหลดค่าไว้ตอนเริ่ม)
 - 🟡 **M3** — เสร็จ: บันทึกทุกการแก้เป็นเวอร์ชันใหม่ + ย้อนกลับได้, หน้าแก้ไขลากวาง/ปรับขนาด (Gridstack, กริด 12 คอลัมน์) + แผงแก้แต่ละส่วน (ชนิดกราฟ, ตัวเลข/สูตร, แยกตาม, ช่วงเวลา, จัดกลุ่ม, เรียง/จำนวน, เป้าหมาย) + เพิ่ม/ลบส่วน + ดูตัวอย่างก่อนบันทึก, ธีม 4 แบบ, **บทสรุปผู้บริหารจาก AI ที่ตรวจตัวเลข** (ส่ง facts ที่คำนวณแล้วให้ AI, ตรวจทุกตัวเลขในข้อความรองรับ บาท/ล้านบาท/ร้อยละ/จุด, ให้แก้ 1 ครั้ง, ตัดข้อที่ไม่ผ่าน, เหลือ < 2 ข้อใช้แบบมาตรฐาน; คงบทสรุปเมื่อแก้แค่หัวข้อ/ตำแหน่ง), **อินโฟกราฟิก 1 หน้า** (เสนออัตโนมัติจากคอลัมน์ ใช้จริง/ใบสั่งซื้อ/คงเหลือ, หัวรายงานจากชีตอื่นในไฟล์, ร้อยละ largest remainder, ตั้งค่าส่วน/สี/ชื่อ, รูปหัวรายงาน, ดาวน์โหลด JPEG/PNG ฝั่งเบราว์เซอร์)
   - ทดสอบจริงกับ ก.ย. 69: บทสรุปจาก AI 5 ข้อ ตรวจตัวเลขผ่านทุกข้อ (~7,000 token) · อินโฟกราฟิก 65/15/20 ตรงกับแบบของผู้บริหาร
-  - เหลือ (M4): ส่งออก PDF/ภาพจากเซิร์ฟเวอร์ด้วย Headless Chrome, ลดจำนวน facts ที่ส่งให้ AI เพื่อลด token
+  - ลดจำนวน facts ที่ส่งให้ AI เพื่อลด token (ยังไม่ทำ)
+- ✅ **M4** — ส่งออกจากเซิร์ฟเวอร์ด้วย Headless Chrome (chrome-php/chrome + CDP `Page.printToPDF`): ทำงานผ่านคิว (สถานะ รอคิว → กำลังสร้าง → พร้อมดาวน์โหลด/ไม่สำเร็จ + ลองใหม่), ลิงก์ render ลงนามอายุ 5 นาทีผูก host ภายใน, หน้า render แยกจากหน้าจอผู้ใช้, ไฟล์เก็บ 7 วันแล้วลบอัตโนมัติ (`exports:purge` ผ่าน scheduler), ดาวน์โหลดเฉพาะเจ้าของ/Admin
+  - **PDF รายงานฉบับเต็ม** (A4 แนวนอน/แนวตั้ง): สารบัญคลิกได้ + บุ๊กมาร์ก (document outline) + PDF แบบ tagged, บทสรุปผู้บริหาร, KPI คลิกกระโดดไปตารางสรุปในภาคผนวก, กราฟเป็น **เวกเตอร์ SVG** คมทุกขนาดและเลือกข้อความได้, ภาคผนวกตารางข้อมูลประกอบทุกกราฟ, ท้ายกระดาษมีชื่อรายงาน วันที่ และเลขหน้า "หน้า x / y" · ข้อความไทยค้นหา/คัดลอกได้ (ตรวจด้วย pdftotext)
+  - **JPEG/PNG**: อินโฟกราฟิก 1 หน้า (1536×1024 ที่ 1×/2×/3× — ทดสอบ 2× ได้ 3072×2048 พอดี) และภาพ Dashboard ทั้งหน้า (วัดความสูงจริงอัตโนมัติ) · JPEG คุณภาพ 90
+  - Self-host ทุกอย่าง: ฟอนต์ Sarabun (`public/fonts`, OFL), ECharts, Gridstack (`public/vendor`) — ไม่พึ่ง CDN ทั้งหน้าเว็บและตอนส่งออก
+  - Docker: image มี Chromium + poppler-utils (สำหรับตรวจ PDF), nginx re-resolve DNS ของ container `app` ทุก 5 วินาที, worker/scheduler รันเป็น `www-data` (ไฟล์ที่ worker สร้างใน `storage/app/private` เป็น 0700 — ถ้ารันเป็น root แล้ว php-fpm จะอ่านไม่ได้) · คำสั่ง artisan ในเครื่อง dev ให้ใช้ `docker compose exec -u www-data app php artisan …`
+  - เหลือ: ส่วนลงนามท้ายรายงาน (FR-6.3.1), รูปหัวรายงานในไฟล์ PDF, ส่งออกภาพทีละ widget, PPTX/Excel (เฟส 2), ขอบเขต PDF ของอินโฟกราฟิก 1 หน้า
 
 ### MVP (~11 สัปดาห์)
 | Milestone | ระยะเวลาประมาณ | สิ่งที่ส่งมอบ |

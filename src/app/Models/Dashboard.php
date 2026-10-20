@@ -28,6 +28,11 @@ class Dashboard extends Model
         return $this->hasMany(DashboardVersion::class)->orderByDesc('version');
     }
 
+    public function exports(): HasMany
+    {
+        return $this->hasMany(Export::class);
+    }
+
     public function currentVersion(): BelongsTo
     {
         return $this->belongsTo(DashboardVersion::class, 'current_version_id');
