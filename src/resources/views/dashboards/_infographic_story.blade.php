@@ -26,7 +26,8 @@
                 @continue
             @endif
             <section class="ig2-block {{ $wide ? 'span2' : '' }}">
-                @if (! empty($b['title']) && $b['type'] !== 'kpis')<h3>{{ $b['title'] }}</h3>@endif
+                @php $blockTitle = $b['title'] ?? ($b['data']['title'] ?? null) @endphp
+                @if ($blockTitle && $b['type'] !== 'kpis')<h3>{{ $blockTitle }}</h3>@endif
 
                 @if ($b['type'] === 'kpis')
                     <div class="ig2-kpis" style="--n:{{ count($b['items']) }}">
