@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\GeneratePlanJob;
 use App\Models\Dashboard;
 use App\Models\DashboardVersion;
+use App\Models\ReportDraft;
 use App\Services\Ai\AiGateway;
 use App\Services\CodeLookup;
 use App\Services\Report\DashboardService;
@@ -44,6 +46,34 @@ class DashboardController extends Controller
             'owner' => $dashboard->user,
             'shares' => $this->canEdit($request, $dashboard) ? $dashboard->shares()->with('user')->latest()->get() : collect(),
         ]);
+    }
+
+    /**
+     * ปรับรายงานด้วยข้อความอิสระ — ทำเป็นงานเบื้องหลัง (ใช้ ReportDraft ชนิด refine) แล้วบันทึกเป็นเวอร์ชันใหม่
+     */
+    public function refine(Request $request, Dashboard $dashboard, AiGateway $ai): RedirectResponse
+    {
+        Gate::authorize('update', $dashboard);
+        $data = $request->validate(['instruction' => ['required', 'string', 'min:5', 'max:800']], [
+            'instruction.required' => 'กรุณาพิมพ์สิ่งที่ต้องการปรับ', 'instruction.min' => 'กรุณาอธิบายให้ชัดขึ้นอีกนิด',
+        ]);
+        $user = $request->user();
+
+        $availability = $ai->availability($user);
+        if (! $availability['available']) {
+            return back()->with('error', $availability['reason']);
+        }
+        if (! $user->ai_consent_at) {
+            return back()->with('error', 'ก่อนใช้ AI ต้องรับทราบการส่งข้อมูลสรุปให้ AI — กด "ให้ AI ช่วยสรุป" ที่หน้าข้อมูลของรายงานนี้หนึ่งครั้งเพื่อยอมรับ');
+        }
+
+        $draft = ReportDraft::create([
+            'user_id' => $user->id, 'dataset_id' => $dashboard->dataset_id, 'dashboard_id' => $dashboard->id,
+            'mode' => 'ai', 'kind' => 'refine', 'brief' => trim($data['instruction']), 'status' => 'planning', 'send_samples' => false,
+        ]);
+        GeneratePlanJob::dispatch($draft->id, []);
+
+        return redirect()->route('drafts.show', $draft);
     }
 
     public function edit(Request $request, Dashboard $dashboard): View

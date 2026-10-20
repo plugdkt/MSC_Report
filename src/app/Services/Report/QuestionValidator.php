@@ -16,7 +16,7 @@ class QuestionValidator
      * @param  list<string>  $columnIds
      * @return array{0: list<array<string, mixed>>, 1: list<string>, 2: ?string} [คำถาม, ข้อผิดพลาด, understanding]
      */
-    public function validate(?array $data, array $columnIds): array
+    public function validate(?array $data, array $columnIds, int $min = 2): array
     {
         if (! is_array($data) || ! isset($data['questions']) || ! is_array($data['questions'])) {
             return [[], ['ต้องมี key "questions" เป็น array'], null];
@@ -69,8 +69,8 @@ class QuestionValidator
             ], fn ($v) => $v !== null);
         }
 
-        if (count($questions) < 2) {
-            $errors[] = 'ต้องมีคำถามที่ใช้ได้อย่างน้อย 2 ข้อ';
+        if (count($questions) < $min) {
+            $errors[] = "ต้องมีคำถามที่ใช้ได้อย่างน้อย {$min} ข้อ";
         }
 
         $understanding = is_string($data['understanding'] ?? null) ? mb_substr(trim($data['understanding']), 0, 500) : null;

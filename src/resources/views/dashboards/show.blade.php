@@ -99,6 +99,19 @@
             @endif
         </section>
 
+        @if ($canEdit && $aiAvailable)
+            <section class="card" style="margin-bottom:1.2rem" aria-label="ปรับรายงานด้วยข้อความ">
+                <h2 style="font-size:1.15rem;margin:0 0 .3rem">✦ ปรับรายงานด้วยข้อความ</h2>
+                <p class="muted" style="margin:0 0 .6rem">บอก AI ว่าอยากเพิ่ม/ลด/เปลี่ยนอะไร เช่น "เพิ่มกราฟเปรียบเทียบรายเดือน" หรือ "ตัดตารางออก เน้นผลรวมแต่ละหน่วยงาน" — บันทึกเป็นเวอร์ชันใหม่ ย้อนกลับได้</p>
+                <form method="POST" action="{{ route('dashboards.refine', $dashboard) }}" data-busy="AI กำลังปรับรายงาน…" style="display:grid;gap:.6rem">
+                    @csrf
+                    <textarea name="instruction" rows="2" maxlength="800" required placeholder="พิมพ์สิ่งที่ต้องการปรับ…" style="width:100%">{{ old('instruction') }}</textarea>
+                    @error('instruction')<div class="field-error">{{ $message }}</div>@enderror
+                    <div><button class="btn btn-outline" type="submit">ให้ AI ปรับรายงาน</button></div>
+                </form>
+            </section>
+        @endif
+
         @if ($exports->isNotEmpty())
             <section class="card" style="margin-bottom:1.2rem;padding:.8rem 1.2rem">
                 <h2 style="font-size:1.05rem;margin:0 0 .4rem">ไฟล์ที่ส่งออกล่าสุด</h2>

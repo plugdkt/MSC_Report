@@ -9,7 +9,7 @@
 @section('body')
 <main>
     <div class="container" style="max-width:56rem">
-        @include('datasets._steps', ['current' => 4])
+        @if ($draft->kind !== 'refine')@include('datasets._steps', ['current' => 4])@endif
         <p class="muted" style="margin:0 0 .3rem">📄 {{ $dataset->name }}{{ $dataset->period_label ? ' · งวด '.$dataset->period_label : '' }}</p>
 
         @foreach ($draft->notices ?? [] as $notice)
@@ -25,17 +25,21 @@
         @elseif ($draft->status === 'planning')
             <div class="card empty">
                 <div class="spinner" aria-hidden="true"></div>
-                <h1 style="font-size:1.4rem">{{ $draft->mode === 'ai' ? 'AI กำลังออกแบบรายงาน…' : 'กำลังสร้างรายงาน…' }}</h1>
+                <h1 style="font-size:1.4rem">{{ $draft->kind === 'refine' ? 'AI กำลังปรับรายงานตามที่บอก…' : ($draft->mode === 'ai' ? 'AI กำลังออกแบบรายงาน…' : 'กำลังสร้างรายงาน…') }}</h1>
                 <p class="muted">ตัวเลขทุกตัวคำนวณจากข้อมูลจริงในระบบ</p>
             </div>
         @elseif ($draft->status === 'failed')
             <div class="alert alert-error" role="alert">{{ $draft->error_message }}</div>
             <div style="display:flex;gap:.6rem;flex-wrap:wrap">
                 <form method="POST" action="{{ route('drafts.retry', $draft) }}">@csrf<input type="hidden" name="mode" value="ai"><button class="btn btn-primary" type="submit">ลองใหม่ด้วย AI</button></form>
-                <form method="POST" action="{{ route('drafts.retry', $draft) }}">@csrf<input type="hidden" name="mode" value="rule"><button class="btn btn-outline" type="submit">ใช้โหมดไม่ใช้ AI</button></form>
+                @if ($draft->kind === 'refine')
+                    <a class="btn btn-outline" href="{{ route('dashboards.show', $draft->dashboard_id) }}">‹ กลับไปที่รายงาน</a>
+                @else
+                    <form method="POST" action="{{ route('drafts.retry', $draft) }}">@csrf<input type="hidden" name="mode" value="rule"><button class="btn btn-outline" type="submit">ใช้โหมดไม่ใช้ AI</button></form>
+                @endif
             </div>
         @else
-            <h1 style="font-size:1.8rem">{{ $draft->mode === 'ai' ? 'AI ขอถามก่อนสรุป' : 'เลือกรูปแบบรายงาน' }}</h1>
+            <h1 style="font-size:1.8rem">{{ $draft->mode === 'ai' ? 'ขอถามเพิ่มอีกนิดก่อนสรุป' : 'เลือกรูปแบบรายงาน' }}</h1>
             @if ($draft->understanding)
                 <div class="card" style="margin-bottom:1rem;background:var(--accent-soft);border-color:#f3d9a5">
                     <b style="color:var(--accent-text)">✦ AI เข้าใจว่า:</b> {{ $draft->understanding }}

@@ -30,7 +30,7 @@ class GeneratePlanJob implements ShouldQueue
         }
 
         try {
-            $planner->plan($draft, $this->answers);
+            $draft->kind === 'refine' ? $planner->refine($draft) : $planner->plan($draft, $this->answers);
         } catch (Throwable $e) {
             Log::error('Generate plan failed', ['draft' => $draft->id, 'error' => $e->getMessage()]);
             $draft->update(['status' => 'failed', 'error_message' => 'สร้างรายงานไม่สำเร็จ: '.mb_strimwidth($e->getMessage(), 0, 200, '…')]);

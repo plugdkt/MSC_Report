@@ -49,12 +49,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/datasets/{dataset}/excel-template', [ExcelTemplateController::class, 'fromDataset'])->name('datasets.excel-template');
 
     Route::get('/excel-templates', [ExcelTemplateController::class, 'index'])->name('excel-templates.index');
+    Route::get('/datasets/{dataset}/brief', [ReportDraftController::class, 'brief'])->name('drafts.brief');
     Route::post('/datasets/{dataset}/drafts', [ReportDraftController::class, 'start'])->name('drafts.start')->middleware('throttle:20,10');
     Route::get('/drafts/{draft}', [ReportDraftController::class, 'show'])->name('drafts.show');
     Route::post('/drafts/{draft}/answers', [ReportDraftController::class, 'answer'])->name('drafts.answer')->middleware('throttle:20,10');
     Route::post('/drafts/{draft}/retry', [ReportDraftController::class, 'retry'])->name('drafts.retry');
     Route::get('/dashboards/{dashboard}', [DashboardController::class, 'show'])->name('dashboards.show');
     Route::get('/dashboards/{dashboard}/edit', [DashboardController::class, 'edit'])->name('dashboards.edit');
+    Route::post('/dashboards/{dashboard}/refine', [DashboardController::class, 'refine'])->name('dashboards.refine')->middleware('throttle:10,10');
     Route::post('/dashboards/{dashboard}/preview', [DashboardController::class, 'preview'])->name('dashboards.preview');
     Route::put('/dashboards/{dashboard}/spec', [DashboardController::class, 'saveSpec'])->name('dashboards.spec');
     Route::put('/dashboards/{dashboard}/theme', [DashboardController::class, 'theme'])->name('dashboards.theme');

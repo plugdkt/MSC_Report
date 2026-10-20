@@ -136,10 +136,10 @@
                     <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;justify-content:flex-end">
                         @if ($ai['available'])
                             <form method="POST" action="{{ route('drafts.start', $dataset) }}">@csrf<input type="hidden" name="mode" value="rule"><button class="btn btn-ghost" type="submit">สร้างแบบไม่ใช้ AI</button></form>
-                            <form method="POST" action="{{ route('drafts.start', $dataset) }}" style="text-align:right">@csrf<input type="hidden" name="mode" value="ai">
-                                <button class="btn btn-primary btn-lg" type="submit">ถัดไป: ให้ AI ช่วยสรุป ›</button>
-                                <div class="muted" style="font-size:.85rem;margin-top:.2rem">ทั้งรายงาน (ถามคำถาม + วางแผน) ใช้ราว {{ number_format($estimate * 2) }} token{{ $ai['source'] === 'shared' ? ' (key กลาง)' : '' }}</div>
-                            </form>
+                            <div style="text-align:right">
+                                <a class="btn btn-primary btn-lg" href="{{ route('drafts.brief', $dataset) }}">ถัดไป: ให้ AI ช่วยสรุป ›</a>
+                                <div class="muted" style="font-size:.85rem;margin-top:.2rem">อธิบายว่าอยากให้สรุปอะไร · ใช้ราว {{ number_format($estimate) }} token{{ $ai['source'] === 'shared' ? ' (key กลาง)' : '' }}</div>
+                            </div>
                         @else
                             <span class="muted" style="max-width:24rem;font-size:.92rem;text-align:right">{{ $ai['reason'] }} · <a href="{{ route('me.ai') }}">ตั้งค่า AI ของฉัน</a></span>
                             <form method="POST" action="{{ route('drafts.start', $dataset) }}">@csrf<input type="hidden" name="mode" value="rule"><button class="btn btn-primary btn-lg" type="submit">ถัดไป: สร้างรายงาน (ไม่ใช้ AI) ›</button></form>

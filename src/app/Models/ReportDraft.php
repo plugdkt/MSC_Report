@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * ขั้นตอนถาม-ตอบก่อนสร้างรายงานของ dataset หนึ่งชุด
  */
-#[Fillable(['user_id', 'dataset_id', 'mode', 'status', 'questions', 'answers', 'understanding', 'notices', 'error_message', 'dashboard_id', 'send_samples'])]
+#[Fillable(['user_id', 'dataset_id', 'mode', 'status', 'questions', 'answers', 'understanding', 'notices', 'error_message', 'dashboard_id', 'send_samples', 'brief', 'kind'])]
 class ReportDraft extends Model
 {
     protected function casts(): array

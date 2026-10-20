@@ -46,6 +46,16 @@ class ReportPlanner
         return $request->estimatedInputTokens() + (int) config('ai.max_output_tokens.clarify') / 2;
     }
 
+    /**
+     * ประมาณ token ของการวางแผนรอบเดียว (โหมดอธิบายอิสระ)
+     */
+    public function estimatePlanTokens(Dataset $dataset): int
+    {
+        $request = $this->prompts->plan($this->profiles->build($dataset), [['question' => 'ผู้ใช้ต้องการ', 'answer' => str_repeat('ก', 150)]]);
+
+        return $request->estimatedInputTokens() + (int) config('ai.max_output_tokens.plan') / 2;
+    }
+
     public function ask(ReportDraft $draft): void
     {
         $dataset = $draft->dataset;
@@ -71,7 +81,7 @@ class ReportPlanner
     /**
      * @param  array<string, mixed>  $answers
      */
-    public function plan(ReportDraft $draft, array $answers): Dashboard
+    public function plan(ReportDraft $draft, array $answers): ?Dashboard
     {
         $dataset = $draft->dataset;
         $columns = $dataset->columns()->get();
@@ -82,7 +92,14 @@ class ReportPlanner
 
         if ($draft->mode === 'ai') {
             try {
-                $spec = $this->planAi($draft, $profile, $answers, $columns, $defaultTitle);
+                $result = $this->planAi($draft, $profile, $answers, $columns, $defaultTitle);
+                if (isset($result['clarify'])) {
+                    // AI ขอถามเพิ่ม (เฉพาะเมื่อคำอธิบายกำกวมมาก) — รอผู้ใช้ตอบแล้วค่อยวางแผนต่อ
+                    $draft->fill(['questions' => $result['clarify'], 'understanding' => $result['understanding'], 'status' => 'questions'])->save();
+
+                    return null;
+                }
+                $spec = $result;
                 $source = 'ai';
             } catch (AiException $e) {
                 $draft->addNotice('สร้างรายงานด้วยกฎมาตรฐานแทน เพราะ: '.$e->getMessage());
@@ -103,7 +120,7 @@ class ReportPlanner
         $dashboard = DB::transaction(function () use ($draft, $dataset, $spec, $source, $answers) {
             $dashboard = Dashboard::create(['user_id' => $draft->user_id, 'title' => $spec['title'], 'dataset_id' => $dataset->id]);
             [$version, $errors] = $this->dashboards->saveVersion($dashboard, $spec, $draft->user, $source,
-                $source === 'ai' ? 'สร้างโดย AI จากคำตอบของผู้ใช้' : 'สร้างด้วยกฎมาตรฐาน (ไม่ใช้ AI)');
+                $source === 'ai' ? 'สร้างโดย AI ตามที่ผู้ใช้อธิบาย' : 'สร้างด้วยกฎมาตรฐาน (ไม่ใช้ AI)');
             if (! $version) {
                 throw new \RuntimeException(implode('; ', $errors));
             }
@@ -151,18 +168,88 @@ class ReportPlanner
      */
     private function planAi(ReportDraft $draft, array $profile, array $answers, $columns, string $defaultTitle): array
     {
-        $request = $this->prompts->plan($profile, $this->describeAnswers($draft->questions ?? [], $answers));
+        $canClarify = $draft->kind === 'create' && trim((string) $draft->brief) !== '' && $draft->questions === null;
+        $request = $this->prompts->plan($profile, [...$this->describeBrief($draft), ...$this->describeAnswers($draft->questions ?? [], $answers)], $canClarify);
+        $ids = array_column($profile['columns'], 'id');
 
-        [$data, $response, $request] = $this->callWithRepair($draft, $request, function (?array $data) use ($columns, $defaultTitle) {
+        [$data, $response, $request] = $this->callWithRepair($draft, $request, function (?array $data) use ($columns, $defaultTitle, $canClarify, $ids) {
+            if ($canClarify && isset($data['need_clarification'])) {
+                return $this->questionValidator->validate(['questions' => $data['need_clarification']['questions'] ?? null], $ids, 1)[1];
+            }
             [$spec, $errors] = $this->specValidator->validate($data, $columns, $defaultTitle);
 
             return $spec === [] || $spec['widgets'] === [] ? ($errors ?: ['ไม่มี widget ที่ใช้ได้']) : $errors;
         });
 
+        if ($canClarify && isset($data['need_clarification'])) {
+            [$questions] = $this->questionValidator->validate(['questions' => $data['need_clarification']['questions']], $ids, 1);
+
+            return ['clarify' => $questions, 'understanding' => is_string($data['understanding'] ?? null) ? mb_substr($data['understanding'], 0, 500) : null];
+        }
+
         [$spec] = $this->specValidator->validate($data, $columns, $defaultTitle);
         $this->ai->storeCache($request, $response);
 
         return $spec;
+    }
+
+    /**
+     * @return list<array{question:string, answer:string}>
+     */
+    private function describeBrief(ReportDraft $draft): array
+    {
+        if ($draft->brief === null) {
+            return [];
+        }
+        $text = trim($draft->brief);
+
+        return [['question' => 'อยากให้สรุปอะไร / ให้ใครดู', 'answer' => $text !== '' ? $text : '(ไม่ได้ระบุ — เลือกมุมมองที่เหมาะกับข้อมูลและผู้บริหารเอง)']];
+    }
+
+    /**
+     * ปรับรายงานเดิมตามคำสั่งข้อความของผู้ใช้ แล้วบันทึกเป็นเวอร์ชันใหม่ (ตัวเลขยังคำนวณโดยระบบ)
+     */
+    public function refine(ReportDraft $draft): Dashboard
+    {
+        $dashboard = Dashboard::with(['currentVersion', 'dataset'])->findOrFail($draft->dashboard_id);
+        $dataset = $dashboard->dataset;
+        $columns = $dataset->columns()->get();
+        $old = $dashboard->currentVersion->spec;
+
+        $forAi = ['title' => $old['title'], 'subtitle' => $old['subtitle'] ?? null, 'widgets' => array_map(fn ($w) => array_diff_key($w, ['layout' => 1]), $old['widgets'])];
+        $request = $this->prompts->refine($this->profiles->build($dataset, withSamples: false), $forAi, (string) $draft->brief);
+
+        [$data, $response, $request] = $this->callWithRepair($draft, $request, function (?array $data) use ($columns, $dashboard) {
+            [$spec, $errors] = $this->specValidator->validate($data, $columns, $dashboard->title);
+
+            return $spec === [] || $spec['widgets'] === [] ? ($errors ?: ['ไม่มี widget ที่ใช้ได้']) : $errors;
+        });
+
+        // คงตำแหน่งเดิมของ widget ที่ยังอยู่ (ถ้าครบทุกชิ้น) — มิฉะนั้นให้ระบบจัดใหม่
+        $oldLayout = collect($old['widgets'])->pluck('layout', 'id');
+        $data['widgets'] = array_map(fn ($w) => is_array($w) && isset($w['id'], $oldLayout[$w['id']]) && ! isset($w['layout']) ? $w + ['layout' => $oldLayout[$w['id']]] : $w, $data['widgets']);
+        [$spec] = $this->specValidator->validate($data, $columns, $dashboard->title);
+        $spec['theme'] = $old['theme'] ?? Org::defaultTheme();
+        if (isset($old['infographic'])) {
+            $spec['infographic'] = $old['infographic'];
+        }
+        $this->ai->storeCache($request, $response);
+
+        [$version, $errors] = $this->dashboards->saveVersion($dashboard, $spec, $draft->user, 'ai', 'ปรับตามคำสั่ง: '.mb_strimwidth((string) $draft->brief, 0, 120, '…'));
+        if (! $version) {
+            throw new \RuntimeException(implode('; ', $errors));
+        }
+        Audit::log('report.refined', $dashboard, user: $draft->user, summary: mb_strimwidth((string) $draft->brief, 0, 120, '…'));
+
+        if ($version->executive_summary === null) {
+            $notice = $this->narratives->generate($version, $draft->user, true);
+            if ($notice) {
+                $draft->addNotice($notice);
+            }
+        }
+        $draft->fill(['status' => 'done'])->save();
+
+        return $dashboard;
     }
 
     /**

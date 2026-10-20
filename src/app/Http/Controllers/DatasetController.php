@@ -123,7 +123,7 @@ class DatasetController extends Controller
             'columns' => $dataset->columns()->with('codeSet')->get(),
             'codes' => app(CodeLookup::class),
             'ai' => $ai = app(AiGateway::class)->availability(request()->user()),
-            'estimate' => $dataset->status === 'ready' && $ai['available'] ? app(ReportPlanner::class)->estimateClarifyTokens($dataset) : 0,
+            'estimate' => $dataset->status === 'ready' && $ai['available'] ? app(ReportPlanner::class)->estimatePlanTokens($dataset) : 0,
             'types' => DatasetColumn::TYPES,
             'canEdit' => Gate::allows('update', $dataset),
         ]);

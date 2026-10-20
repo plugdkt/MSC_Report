@@ -19,6 +19,8 @@ class AuditLog extends Model
         'dataset.upload' => 'อัปโหลดไฟล์',
         'dataset.import' => 'นำเข้าข้อมูล',
         'dataset.delete' => 'ลบข้อมูล',
+        'dataset.deleted' => 'ลบข้อมูล',
+        'report.refined' => 'ปรับรายงานด้วย AI',
         'ai.consent' => 'ยอมรับการใช้ AI',
         'ai.key_saved' => 'บันทึก API Key',
         'ai.key_deleted' => 'ลบ API Key',
