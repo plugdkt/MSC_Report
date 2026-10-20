@@ -19,6 +19,7 @@ return [
         // เผื่อ token ที่โมเดลใช้ "คิดก่อนตอบ" (reasoning) — ถ้าน้อยไปโมเดลจะตอบไม่ทัน
         'clarify' => 3000,
         'plan' => 6000,
+        'narrative' => 2500,
         'test' => 300,
     ],
     'retries' => 2,

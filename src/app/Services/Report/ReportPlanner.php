@@ -28,6 +28,9 @@ class ReportPlanner
         private readonly SpecValidator $specValidator,
         private readonly RulePlanner $rulePlanner,
         private readonly AggregationEngine $engine,
+        private readonly DashboardService $dashboards,
+        private readonly InfographicSuggester $infographics,
+        private readonly NarrativeService $narratives,
     ) {}
 
     /**
@@ -91,23 +94,29 @@ class ReportPlanner
             }
         }
 
-        $computed = $this->engine->compute($dataset, $spec);
+        $spec['infographic'] ??= $this->infographics->suggest($dataset, $draft->user->div_name);
 
-        return DB::transaction(function () use ($draft, $dataset, $spec, $computed, $source, $answers) {
+        $dashboard = DB::transaction(function () use ($draft, $dataset, $spec, $source, $answers) {
             $dashboard = Dashboard::create(['user_id' => $draft->user_id, 'title' => $spec['title'], 'dataset_id' => $dataset->id]);
-            $version = $dashboard->versions()->create([
-                'version' => 1,
-                'spec' => $spec,
-                'computed_data' => $computed,
-                'source' => $source,
-                'created_by' => $draft->user_id,
-                'note' => $source === 'ai' ? 'สร้างโดย AI จากคำตอบของผู้ใช้' : 'สร้างด้วยกฎมาตรฐาน (ไม่ใช้ AI)',
-            ]);
-            $dashboard->update(['current_version_id' => $version->id]);
-            $draft->fill(['answers' => $answers, 'status' => 'done', 'dashboard_id' => $dashboard->id])->save();
+            [$version, $errors] = $this->dashboards->saveVersion($dashboard, $spec, $draft->user, $source,
+                $source === 'ai' ? 'สร้างโดย AI จากคำตอบของผู้ใช้' : 'สร้างด้วยกฎมาตรฐาน (ไม่ใช้ AI)');
+            if (! $version) {
+                throw new \RuntimeException(implode('; ', $errors));
+            }
+            $draft->fill(['answers' => $answers, 'dashboard_id' => $dashboard->id])->save();
 
             return $dashboard;
         });
+
+        // บทสรุปผู้บริหาร: ถ้าใช้ AI ไม่ได้ ใช้แบบมาตรฐาน — ไม่ทำให้การสร้างรายงานล้มเหลว
+        // ใช้ AI เขียนบทสรุปเฉพาะเมื่อขั้นวางแผนใช้ AI สำเร็จ (ถ้า AI มีปัญหาอยู่แล้วจะไม่เสีย token เพิ่ม)
+        $notice = $this->narratives->generate($dashboard->fresh()->currentVersion, $draft->user, $source === 'ai');
+        if ($notice) {
+            $draft->addNotice($notice);
+        }
+        $draft->fill(['status' => 'done'])->save();
+
+        return $dashboard;
     }
 
     /**

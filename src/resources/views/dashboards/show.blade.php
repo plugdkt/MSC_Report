@@ -6,6 +6,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
 @endpush
 
+@php($summary = $version->executive_summary)
+
 @section('body')
 <main>
     <div class="container">
@@ -16,111 +18,78 @@
                 <h1>{{ $spec['title'] }}</h1>
                 <p class="muted" style="margin:.2rem 0 0">
                     {{ $spec['subtitle'] ?? '' }}
-                    <span class="badge" style="margin-left:.3rem">{{ $version->source === 'ai' ? '✦ ออกแบบโดย AI' : 'กฎมาตรฐาน (ไม่ใช้ AI)' }}</span>
+                    <span class="badge" style="margin-left:.3rem">{{ $version->source === 'ai' ? '✦ ออกแบบโดย AI' : ($version->source === 'rule' ? 'กฎมาตรฐาน' : 'แก้ไขโดยผู้ใช้') }}</span>
+                    <span class="muted" style="font-size:.88rem">· เวอร์ชัน {{ $version->version }}</span>
                 </p>
             </div>
-            <a class="btn btn-outline" href="{{ route('datasets.show', $dataset) }}">ข้อมูลต้นทาง</a>
+            <div class="toolbar-actions">
+                @if ($canEdit)
+                    <form method="POST" action="{{ route('dashboards.theme', $dashboard) }}" class="inline-form">
+                        @csrf @method('PUT')
+                        <label class="sr-only" for="theme">ธีม</label>
+                        <select id="theme" name="theme" onchange="this.form.submit()">
+                            @foreach ($themes as $key => $label)<option value="{{ $key }}" @selected(($spec['theme'] ?? 'org') === $key)>ธีม: {{ $label }}</option>@endforeach
+                        </select>
+                    </form>
+                    <a class="btn btn-ghost" href="{{ route('dashboards.versions', $dashboard) }}">ประวัติเวอร์ชัน</a>
+                    <a class="btn btn-outline" href="{{ route('dashboards.edit', $dashboard) }}">✎ แก้ไข/จัดหน้า</a>
+                @endif
+                @if (! empty($spec['infographic']['enabled']))
+                    <a class="btn btn-primary" href="{{ route('dashboards.infographic', $dashboard) }}">อินโฟกราฟิก 1 หน้า</a>
+                @endif
+            </div>
         </div>
 
-        <div class="alert alert-ok" role="status" style="background:var(--primary-soft);color:var(--primary);border-color:#c9d6ec">
-            ต้นแบบ M2: แสดงผลจากแผนที่ได้ — การจัดวาง/แก้ไข บทสรุปผู้บริหาร และส่งออก PDF/JPEG จะเพิ่มใน M3–M4
-        </div>
+        @if (session('status'))<div class="alert alert-ok" role="status">{{ session('status') }}</div>@endif
+        @if (session('error'))<div class="alert alert-error" role="alert">{{ session('error') }}</div>@endif
 
-        <div class="dash-grid" id="dash"></div>
+        <section class="card summary-card" aria-label="บทสรุปสำหรับผู้บริหาร">
+            <div class="summary-head">
+                <h2>✦ บทสรุปสำหรับผู้บริหาร</h2>
+                @if ($summary)
+                    <span @class(['badge', 'badge-good' => $summary['source'] === 'ai'])>{{ $summary['source'] === 'ai' ? 'เขียนโดย AI · ตรวจตัวเลขกับข้อมูลแล้ว' : 'แบบมาตรฐาน (ไม่ใช้ AI)' }}</span>
+                @endif
+            </div>
+            @if ($summary && $summary['bullets'])
+                <ol>@foreach ($summary['bullets'] as $b)<li>{{ $b['text'] }}</li>@endforeach</ol>
+            @else
+                <p class="muted" style="margin:0">ยังไม่มีบทสรุป</p>
+            @endif
+            @if ($canEdit)
+                <div class="summary-actions">
+                    @if ($aiAvailable)
+                        <form method="POST" action="{{ route('dashboards.summary', $dashboard) }}" data-busy="AI กำลังเขียนบทสรุป…">@csrf<input type="hidden" name="ai" value="1"><button class="btn btn-ghost" type="submit">ให้ AI เขียนบทสรุปใหม่</button></form>
+                    @endif
+                    <form method="POST" action="{{ route('dashboards.summary', $dashboard) }}">@csrf<input type="hidden" name="ai" value="0"><button class="btn btn-ghost" type="submit">ใช้บทสรุปแบบมาตรฐาน</button></form>
+                </div>
+            @endif
+        </section>
+
+        <div class="dash-board theme-{{ $spec['theme'] ?? 'org' }}" id="dash"></div>
     </div>
 </main>
 @endsection
 
 @push('scripts')
+<script src="{{ asset('js/dashboard-render.js') }}"></script>
 <script>
 (function () {
-    var spec = @json($spec);
-    var data = @json($computed);
-    var root = document.getElementById('dash');
-    var fmt = function (v, unit) {
-        if (v === null || v === undefined) { return '—'; }
-        var d = unit === '%' ? 1 : (Math.abs(v) >= 1000 || unit === 'บาท' ? 2 : 2);
-        var s = Number(v).toLocaleString('th-TH', { minimumFractionDigits: unit === 'บาท' ? 2 : 0, maximumFractionDigits: d });
-        return unit === '%' ? s + '%' : s;
-    };
-    var palette = ['#1f3b6e', '#b7822b', '#4f7cc4', '#1e7a4c', '#8fa7d1', '#b42318', '#6b5b95', '#5f9ea0'];
-    var charts = [];
-
+    var spec = @json($spec), data = @json($computed), root = document.getElementById('dash'), items = [];
+    var rows = spec.widgets.reduce(function (m, w) { return Math.max(m, w.layout.y + w.layout.h); }, 0);
+    root.style.setProperty('--rows', rows);
     spec.widgets.forEach(function (w) {
-        var d = data[w.id]; if (!d) { return; }
         var el = document.createElement('section');
-        el.className = 'card dash-' + w.type;
-        el.innerHTML = '<h2 class="w-title"></h2>';
-        el.querySelector('.w-title').textContent = w.title;
+        el.className = 'card dash-item dash-' + w.type;
+        el.style.gridColumn = (w.layout.x + 1) + ' / span ' + w.layout.w;
+        el.style.gridRow = (w.layout.y + 1) + ' / span ' + w.layout.h;
         root.appendChild(el);
-
-        if (w.type === 'kpi') {
-            var big = d.unit === 'บาท' && Math.abs(d.value || 0) >= 1e6;
-            var v = document.createElement('div'); v.className = 'kpi-value';
-            v.textContent = big ? (d.value / 1e6).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : fmt(d.value, d.unit);
-            var u = document.createElement('div'); u.className = 'muted'; u.textContent = big ? 'ล้านบาท' : (d.unit && d.unit !== '%' ? d.unit : (d.label || ''));
-            el.appendChild(v); el.appendChild(u);
-            if (big) { var s = document.createElement('div'); s.className = 'kpi-sub'; s.textContent = fmt(d.value, 'บาท') + ' บาท'; el.appendChild(s); }
-            return;
-        }
-        if (w.type === 'table') {
-            var wrap = document.createElement('div'); wrap.className = 'table-wrap';
-            var t = document.createElement('table'); t.className = 'num-table';
-            var thead = '<thead><tr>' + d.columns.map(function (c) { return '<th>' + c.label.replace(/</g, '&lt;') + (c.unit ? ' (' + c.unit + ')' : '') + '</th>'; }).join('') + '</tr></thead>';
-            var body = d.rows.map(function (r, i) {
-                var total = d.has_total && i === d.rows.length - 1;
-                return '<tr' + (total ? ' class="total"' : '') + '>' + r.map(function (c, j) {
-                    return j === 0 && d.columns[0].unit === null ? '<td>' + String(c).replace(/</g, '&lt;') + '</td>' : '<td class="n">' + fmt(c, d.columns[j].unit) + '</td>';
-                }).join('') + '</tr>';
-            }).join('');
-            t.innerHTML = thead + '<tbody>' + body + '</tbody>';
-            wrap.appendChild(t); el.appendChild(wrap);
-            return;
-        }
-
-        var box = document.createElement('div'); box.className = 'chart-box'; el.appendChild(box);
-        charts.push({ el: box, w: w, d: d });
+        items.push({ el: el, w: w });
     });
-
-    function option(w, d) {
-        var fs = Math.round(parseFloat(getComputedStyle(document.documentElement).fontSize) * 0.85);
-        var base = { textStyle: { fontFamily: 'Sarabun, Tahoma, sans-serif', fontSize: fs, color: '#445064' }, color: palette, animationDuration: 500,
-                     tooltip: { trigger: w.type === 'pie' || w.type === 'gauge' ? 'item' : 'axis', textStyle: { fontFamily: 'Sarabun', fontSize: fs } } };
-        if (w.type === 'gauge') {
-            return Object.assign(base, { series: [{ type: 'gauge', min: 0, max: 100, progress: { show: true, width: 18 }, axisLine: { lineStyle: { width: 18 } },
-                detail: { formatter: '{value}%', fontSize: fs * 2, fontWeight: 700, color: '#1b2330' }, data: [{ value: d.value }],
-                axisLabel: { fontSize: fs * 0.8 }, pointer: { show: false }, title: { show: false },
-                markLine: d.target ? {} : undefined }] });
-        }
-        if (w.type === 'pie') {
-            return Object.assign(base, { legend: { bottom: 0, type: 'scroll', textStyle: { fontSize: fs } },
-                series: [{ type: 'pie', radius: ['38%', '68%'], center: ['50%', '45%'], label: { formatter: '{d}%', fontSize: fs, fontWeight: 700 },
-                    data: d.categories.map(function (c, i) { return { name: c, value: d.series[0].data[i] }; }) }] });
-        }
-        var horizontal = w.type === 'bar' && d.categories.length > 6;
-        var cat = { type: 'category', data: d.categories, axisLabel: { fontSize: fs, color: '#1b2330', width: horizontal ? 180 : 90, overflow: 'break', interval: 0 }, axisTick: { show: false } };
-        var val = { type: 'value', axisLabel: { fontSize: fs, formatter: function (v) { return Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(1) + ' ลบ.' : Number(v).toLocaleString('th-TH'); } }, splitLine: { lineStyle: { color: '#e6eaf0' } } };
-        return Object.assign(base, {
-            legend: d.series.length > 1 ? { top: 0, textStyle: { fontSize: fs } } : undefined,
-            grid: { left: 8, right: 24, top: d.series.length > 1 ? 36 : 12, bottom: 8, containLabel: true },
-            xAxis: horizontal ? val : cat, yAxis: horizontal ? Object.assign(cat, { inverse: true }) : val,
-            series: d.series.map(function (s) {
-                return { name: s.name, type: w.type, data: s.data, smooth: false, symbolSize: 8, barMaxWidth: 36,
-                         itemStyle: w.type === 'bar' ? { borderRadius: horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0] } : undefined,
-                         tooltip: { valueFormatter: function (v) { return fmt(v, s.unit) + (s.unit && s.unit !== '%' ? ' ' + s.unit : ''); } } };
-            })
-        });
-    }
-
-    function render() {
-        charts.forEach(function (c) {
-            if (!c.chart) { c.chart = echarts.init(c.el); }
-            c.chart.setOption(option(c.w, c.d), true);
-        });
-    }
-    (document.fonts ? document.fonts.ready : Promise.resolve()).then(render);
-    window.addEventListener('resize', function () { charts.forEach(function (c) { c.chart && c.chart.resize(); }); });
-    document.addEventListener('click', function (e) { if (e.target.closest('.font-size button')) { setTimeout(function () { render(); charts.forEach(function (c) { c.chart.resize(); }); }, 50); } });
+    function draw() { items.forEach(function (it) { it.r && it.r.dispose && it.r.dispose(); it.r = MscDashboard.renderWidget(it.el, it.w, data[it.w.id], spec.theme); }); }
+    (document.fonts ? document.fonts.ready : Promise.resolve()).then(draw);
+    window.addEventListener('resize', function () { items.forEach(function (it) { it.r && it.r.resize(); }); });
+    document.addEventListener('click', function (e) { if (e.target.closest('.font-size button')) { setTimeout(draw, 30); } });
+    document.querySelectorAll('form[data-busy]').forEach(function (f) { f.addEventListener('submit', function () { var b = f.querySelector('button'); b.disabled = true; b.textContent = f.dataset.busy; }); });
 })();
 </script>
 @endpush

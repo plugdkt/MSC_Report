@@ -75,6 +75,28 @@ TXT;
     }
 
     /**
+     * @param  list<array{id:string, label:string, value:float, unit:?string}>  $facts
+     */
+    public function narrative(string $title, array $facts): AiRequest
+    {
+        $system = self::COMMON."\n\n".<<<'TXT'
+งาน: เขียน "บทสรุปสำหรับผู้บริหาร" 3–5 ข้อ จากตัวเลขที่ระบบคำนวณแล้ว (facts)
+กติกาสำคัญ:
+- ใช้เฉพาะตัวเลขที่อยู่ใน facts เท่านั้น ห้ามคำนวณใหม่ ห้ามบวก/ลบ/หารเอง ห้ามเดาตัวเลข
+- เขียนจำนวนเงินเป็น "ล้านบาท" ทศนิยม 2 ตำแหน่งได้ (เช่น 11.48 ล้านบาท) หรือเต็มตามค่าใน facts, ร้อยละใช้ทศนิยม 1 ตำแหน่ง
+- แต่ละข้อ 1 ประโยค สั้น ชัด เน้นสิ่งที่ผู้บริหารควรรู้/ตัดสินใจ (ภาพรวม, จุดที่สูง/ต่ำ, เทียบเป้าหมาย)
+- ห้ามใส่ปี พ.ศ. หรือวันที่ที่ไม่ได้อยู่ใน facts
+รูปแบบคำตอบ: {"summary":[{"text":"…","facts":["f1","f3"]}]}
+TXT;
+
+        $lines = array_map(fn ($f) => $f['id'].': '.$f['label'].' = '.$f['value'].($f['unit'] ? ' '.$f['unit'] : ''), $facts);
+
+        return new AiRequest('narrative', $system, [
+            ['role' => 'user', 'content' => "รายงาน: {$title}\n<data>\n".implode("\n", array_slice($lines, 0, 80))."\n</data>"],
+        ]);
+    }
+
+    /**
      * @param  list<string>  $errors
      */
     public function repair(AiRequest $request, string $badResponse, array $errors): AiRequest

@@ -40,6 +40,17 @@ Route::middleware('auth')->group(function () {
     Route::post('/drafts/{draft}/answers', [ReportDraftController::class, 'answer'])->name('drafts.answer');
     Route::post('/drafts/{draft}/retry', [ReportDraftController::class, 'retry'])->name('drafts.retry');
     Route::get('/dashboards/{dashboard}', [DashboardController::class, 'show'])->name('dashboards.show');
+    Route::get('/dashboards/{dashboard}/edit', [DashboardController::class, 'edit'])->name('dashboards.edit');
+    Route::post('/dashboards/{dashboard}/preview', [DashboardController::class, 'preview'])->name('dashboards.preview');
+    Route::put('/dashboards/{dashboard}/spec', [DashboardController::class, 'saveSpec'])->name('dashboards.spec');
+    Route::put('/dashboards/{dashboard}/theme', [DashboardController::class, 'theme'])->name('dashboards.theme');
+    Route::post('/dashboards/{dashboard}/summary', [DashboardController::class, 'summary'])->name('dashboards.summary')->middleware('throttle:20,60');
+    Route::get('/dashboards/{dashboard}/versions', [DashboardController::class, 'versions'])->name('dashboards.versions');
+    Route::post('/dashboards/{dashboard}/versions/{version}/revert', [DashboardController::class, 'revert'])->name('dashboards.revert');
+    Route::get('/dashboards/{dashboard}/infographic', [DashboardController::class, 'infographic'])->name('dashboards.infographic');
+    Route::put('/dashboards/{dashboard}/infographic', [DashboardController::class, 'updateInfographic'])->name('dashboards.infographic.update');
+    Route::post('/dashboards/{dashboard}/image', [DashboardController::class, 'uploadImage'])->name('dashboards.image.upload');
+    Route::get('/dashboards/{dashboard}/image', [DashboardController::class, 'image'])->name('dashboards.image');
 
     Route::get('/me/ai', [MyAiController::class, 'show'])->name('me.ai');
     Route::post('/me/ai', [MyAiController::class, 'store'])->name('me.ai.store')->middleware('throttle:10,1');

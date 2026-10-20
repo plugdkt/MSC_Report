@@ -29,6 +29,29 @@
             <div class="alert alert-ok" role="status">{{ session('status') }}</div>
         @endif
 
+        @if ($dashboards->isNotEmpty())
+            <div class="card" style="margin-bottom:1.2rem">
+                <h2 style="font-size:1.2rem">รายงานของฉัน</h2>
+                <div class="table-wrap">
+                    <table class="ds-table">
+                        <thead><tr><th>รายงาน</th><th>ข้อมูล</th><th>เวอร์ชัน</th><th>แก้ไขล่าสุด</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach ($dashboards as $db)
+                                <tr>
+                                    <td><a href="{{ route('dashboards.show', $db) }}"><strong>{{ $db->title }}</strong></a>
+                                        @if ($db->currentVersion?->source === 'ai')<span class="badge" style="margin-left:.3rem">✦ AI</span>@endif</td>
+                                    <td>{{ $db->dataset?->name ?? '—' }}<br><span class="muted" style="font-size:.88rem">{{ $db->dataset?->period_label }}</span></td>
+                                    <td>{{ $db->currentVersion?->version }}</td>
+                                    <td style="white-space:nowrap">{{ Thai::date($db->updated_at, true) }}</td>
+                                    <td>@if (! empty($db->currentVersion?->spec['infographic']['enabled']))<a href="{{ route('dashboards.infographic', $db) }}">อินโฟกราฟิก</a>@endif</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
+
         @if ($datasets->isEmpty())
             <div class="card empty">
                 <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></div>

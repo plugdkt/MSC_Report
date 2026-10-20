@@ -46,7 +46,37 @@ class AggregationEngine
             };
         }
 
+        if (! empty($spec['infographic']['enabled'])) {
+            $out['_infographic'] = $this->infographic($base, $spec['infographic']);
+        }
+
         return $out;
+    }
+
+    /**
+     * ยอดของแต่ละส่วนในอินโฟกราฟิก + ร้อยละจำนวนเต็มที่รวมกันได้ 100 พอดี (largest remainder)
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @param  array<string, mixed>  $g
+     * @return array<string, mixed>
+     */
+    private function infographic(array $rows, array $g): array
+    {
+        $values = array_map(fn ($p) => round(array_sum(array_map(fn ($r) => $this->rowSum($r, $p['columns']), $rows)), 2), $g['parts']);
+        $total = round(array_sum($values), 2);
+        $raw = array_map(fn ($v) => $total != 0 ? $v / $total * 100 : 0, $values);
+        $pct = array_map(fn ($v) => (int) floor($v), $raw);
+        $left = $total != 0 ? 100 - array_sum($pct) : 0;
+        $order = array_keys($raw);
+        usort($order, fn ($a, $b) => ($raw[$b] - floor($raw[$b])) <=> ($raw[$a] - floor($raw[$a])));
+        foreach (array_slice($order, 0, max(0, $left)) as $i) {
+            $pct[$i]++;
+        }
+
+        return [
+            'parts' => array_map(fn ($p, $i) => ['label' => $p['label'], 'color' => $p['color'], 'value' => $values[$i], 'pct' => $pct[$i], 'exact_pct' => round($raw[$i], 2)], $g['parts'], array_keys($g['parts'])),
+            'total' => $total,
+        ];
     }
 
     public function measureLabel(array $m): string

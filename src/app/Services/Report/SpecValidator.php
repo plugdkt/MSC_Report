@@ -22,6 +22,10 @@ class SpecValidator
 
     public const OPS = ['=', '!=', 'in', '>', '<', '>=', '<='];
 
+    public const THEMES = ['org' => 'องค์กร (กรมท่า-ทอง)', 'formal' => 'ทางการ (เทา-น้ำเงิน)', 'bright' => 'สดใส', 'green' => 'เขียว'];
+
+    private const DEFAULT_SIZE = ['kpi' => [3, 2], 'gauge' => [4, 4], 'pie' => [6, 4], 'bar' => [6, 4], 'line' => [6, 4], 'table' => [12, 4]];
+
     private const MAX_WIDGETS = 12;
 
     /** @var Collection<string, DatasetColumn> */
@@ -50,6 +54,7 @@ class SpecValidator
             'version' => 1,
             'title' => is_string($spec['title'] ?? null) && trim($spec['title']) !== '' ? mb_substr(trim($spec['title']), 0, 200) : $defaultTitle,
             'subtitle' => is_string($spec['subtitle'] ?? null) ? mb_substr(trim($spec['subtitle']), 0, 300) : null,
+            'theme' => array_key_exists($spec['theme'] ?? null, self::THEMES) ? $spec['theme'] : 'org',
             'filters' => $this->filters($spec['filters'] ?? [], 'filters'),
             'widgets' => [],
         ];
@@ -70,6 +75,11 @@ class SpecValidator
             }
             $usedIds[] = $widget['id'];
             $out['widgets'][] = $widget;
+        }
+
+        $out['widgets'] = $this->layout($out['widgets'], $widgets);
+        if (isset($spec['infographic']) && is_array($spec['infographic'])) {
+            $out['infographic'] = $this->infographic($spec['infographic']);
         }
 
         return [$out, $this->errors];
@@ -155,6 +165,89 @@ class SpecValidator
         }
 
         return $out;
+    }
+
+    /**
+     * ตำแหน่ง/ขนาดบนกริด 12 คอลัมน์ — ใช้ของเดิมถ้าถูกต้อง ไม่งั้นจัดให้อัตโนมัติ (KPI เรียงแถวบนสุด)
+     *
+     * @param  list<array<string, mixed>>  $widgets
+     * @param  list<mixed>  $raw
+     * @return list<array<string, mixed>>
+     */
+    private function layout(array $widgets, array $raw): array
+    {
+        $given = [];
+        foreach ($raw as $w) {
+            $l = is_array($w) ? ($w['layout'] ?? null) : null;
+            if (is_array($l) && isset($w['id'], $l['x'], $l['y'], $l['w'], $l['h']) && is_numeric($l['x']) && is_numeric($l['y']) && is_numeric($l['w']) && is_numeric($l['h'])) {
+                $width = max(1, min(12, (int) $l['w']));
+                $given[(string) $w['id']] = ['x' => max(0, min(12 - $width, (int) $l['x'])), 'y' => max(0, (int) $l['y']), 'w' => $width, 'h' => max(1, min(10, (int) $l['h']))];
+            }
+        }
+        $allGiven = $widgets !== [] && count(array_intersect_key($given, array_flip(array_column($widgets, 'id')))) === count($widgets);
+        if ($allGiven) {
+            return array_map(fn ($w) => $w + ['layout' => $given[$w['id']]], $widgets);
+        }
+
+        $x = 0;
+        $y = 0;
+        $rowH = 0;
+        $ordered = [...array_filter($widgets, fn ($w) => $w['type'] === 'kpi'), ...array_filter($widgets, fn ($w) => $w['type'] !== 'kpi')];
+        foreach ($ordered as &$w) {
+            [$wd, $h] = self::DEFAULT_SIZE[$w['type']];
+            if ($x + $wd > 12) {
+                $x = 0;
+                $y += $rowH;
+                $rowH = 0;
+            }
+            $w['layout'] = ['x' => $x, 'y' => $y, 'w' => $wd, 'h' => $h];
+            $x += $wd;
+            $rowH = max($rowH, $h);
+        }
+
+        return array_values($ordered);
+    }
+
+    /**
+     * ค่าตั้งของรูปแบบอินโฟกราฟิก 1 หน้า (spec FR-6.5): ส่วนประกอบ 2–4 ส่วนที่รวมกันเป็นยอดทั้งหมด
+     *
+     * @param  array<string, mixed>  $g
+     * @return array<string, mixed>
+     */
+    private function infographic(array $g): array
+    {
+        $parts = [];
+        foreach (array_slice((array) ($g['parts'] ?? []), 0, 4) as $i => $p) {
+            $cols = [];
+            foreach ((array) ($p['columns'] ?? []) as $ref) {
+                $col = $this->column($ref);
+                if (! $col || ! $col->isNumeric()) {
+                    $this->errors[] = 'อินโฟกราฟิก ส่วนที่ '.($i + 1).': ต้องเลือกคอลัมน์ตัวเลขที่มีอยู่จริง';
+
+                    continue 2;
+                }
+                $cols[] = $col->slug;
+            }
+            if ($cols === []) {
+                continue;
+            }
+            $parts[] = [
+                'label' => mb_substr(trim((string) ($p['label'] ?? '')) ?: 'ส่วนที่ '.($i + 1), 0, 60),
+                'columns' => $cols,
+                'color' => in_array($p['color'] ?? null, ['green', 'red', 'blue', 'orange', 'navy', 'gray'], true) ? $p['color'] : ['green', 'red', 'blue', 'orange'][$i],
+            ];
+        }
+        $text = fn ($k, $max = 200) => is_string($g[$k] ?? null) ? mb_substr(trim($g[$k]), 0, $max) : null;
+
+        return [
+            'enabled' => (bool) ($g['enabled'] ?? $parts !== []) && count($parts) >= 2,
+            'title' => $text('title'),
+            'period' => $text('period', 80),
+            'unit' => $text('unit', 150),
+            'total_label' => $text('total_label', 60) ?: 'ทั้งหมด',
+            'parts' => $parts,
+            'image' => is_string($g['image'] ?? null) && preg_match('/^[a-z0-9\/._-]+$/i', $g['image']) ? $g['image'] : null,
+        ];
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Dashboard;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -28,6 +29,7 @@ class HomeController extends Controller
         return view('home', [
             'user' => $request->user(),
             'datasets' => $request->user()->datasets()->latest()->get(),
+            'dashboards' => Dashboard::where('user_id', $request->user()->id)->with('currentVersion', 'dataset')->latest('updated_at')->get(),
         ]);
     }
 }
