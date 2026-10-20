@@ -5,8 +5,11 @@ services:
     build: ./docker/php
     volumes:
       - ./src:/var/www/html
+      # ไฟล์ข้อมูลจริงสำหรับทดสอบ (ไม่อยู่ใน repo) — test ที่ใช้จะข้ามเองถ้าไม่มี
+      - ./samples:/samples:ro
     environment:
       TZ: Asia/Bangkok
+      SAMPLES_PATH: /samples
     depends_on:
       db:
         condition: service_healthy
@@ -23,14 +26,14 @@ services:
 
   worker:
     build: ./docker/php
-    command: php artisan queue:work --tries=3 --sleep=2
+    command: php artisan queue:work --tries=1 --sleep=2 --timeout=300
     volumes:
       - ./src:/var/www/html
+      - ./samples:/samples:ro
     depends_on:
       db:
         condition: service_healthy
     restart: unless-stopped
-    profiles: ["worker"]
 
   db:
     image: mariadb:11.4

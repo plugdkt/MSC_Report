@@ -2,6 +2,8 @@
 
 @section('title', 'รายงานของฉัน')
 
+@use('App\Support\Thai')
+
 @section('body')
 <main>
     <div class="container">
@@ -14,17 +16,44 @@
                     · <span @class(['badge', 'badge-admin' => $user->isAdmin()])>{{ $user->roleLabel() }}</span>
                 </p>
             </div>
-            <button class="btn btn-primary btn-lg" type="button" disabled title="เปิดใช้ใน M1">
+            <a class="btn btn-primary btn-lg" href="{{ route('datasets.create') }}">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
                 สร้างรายงานใหม่
-            </button>
+            </a>
         </div>
 
-        <div class="card empty">
-            <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></div>
-            <h2 style="font-size:1.3rem">ยังไม่มีรายงาน</h2>
-            <p class="muted" style="max-width:32rem;margin:0 auto">ขั้นถัดไป (M1) จะเปิดให้อัปโหลดไฟล์ Excel เพื่อสร้างรายงานฉบับแรก</p>
-        </div>
+        @if (session('status'))
+            <div class="alert alert-ok" role="status">{{ session('status') }}</div>
+        @endif
+
+        @if ($datasets->isEmpty())
+            <div class="card empty">
+                <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></div>
+                <h2 style="font-size:1.3rem">ยังไม่มีรายงาน</h2>
+                <p class="muted" style="max-width:32rem;margin:0 auto 1rem">เริ่มจากอัปโหลดไฟล์ Excel ที่คุณใช้อยู่ ระบบจะช่วยหาตารางข้อมูลให้</p>
+                <a class="btn btn-outline" href="{{ route('datasets.create') }}">อัปโหลดไฟล์แรก</a>
+            </div>
+        @else
+            <div class="card">
+                <h2 style="font-size:1.2rem">ข้อมูลที่นำเข้า</h2>
+                <div class="table-wrap">
+                    <table class="ds-table">
+                        <thead><tr><th>ชื่อ</th><th>งวด</th><th>แถว</th><th>สถานะ</th><th>อัปโหลดเมื่อ</th></tr></thead>
+                        <tbody>
+                            @foreach ($datasets as $d)
+                                <tr>
+                                    <td><a href="{{ route('datasets.show', $d) }}"><strong>{{ $d->name }}</strong></a><br><span class="muted" style="font-size:.88rem">{{ $d->sheet_name ? 'ชีต '.$d->sheet_name : $d->original_filename }}</span></td>
+                                    <td>{{ $d->period_label ?? '—' }}</td>
+                                    <td>{{ $d->row_count ? number_format($d->row_count) : '—' }}</td>
+                                    <td><span @class(['badge', 'badge-good' => $d->status === 'ready', 'badge-off' => $d->status === 'failed'])>{{ $d->statusLabel() }}</span></td>
+                                    <td style="white-space:nowrap">{{ Thai::date($d->created_at, true) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
     </div>
 </main>
 @endsection

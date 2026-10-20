@@ -25,6 +25,9 @@ class HomeController extends Controller
      */
     public function home(Request $request): View
     {
-        return view('home', ['user' => $request->user()]);
+        return view('home', [
+            'user' => $request->user(),
+            'datasets' => $request->user()->datasets()->latest()->get(),
+        ]);
     }
 }
