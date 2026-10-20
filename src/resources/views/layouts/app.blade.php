@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="th">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>@yield('title', 'MSC Report') — MSC Report</title>
+    {{-- TODO: เก็บไฟล์ฟอนต์ Sarabun ไว้ใน public/fonts แทน Google Fonts ก่อนขึ้น production (spec §2) --}}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    @stack('head')
+</head>
+<body>
+    <header class="site-header">
+        <div class="container nav">
+            <a class="brand" href="{{ auth()->check() ? route('home') : route('landing') }}">
+                <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>
+                MSC Report
+            </a>
+
+            @auth
+                <nav class="nav-links" aria-label="เมนูหลัก">
+                    <a href="{{ route('home') }}" @class(['active' => request()->routeIs('home')])>รายงานของฉัน</a>
+                    @if (auth()->user()->isAdmin())
+                        <a href="{{ route('admin.users.index') }}" @class(['active' => request()->routeIs('admin.*')])>จัดการผู้ใช้</a>
+                    @endif
+                </nav>
+            @endauth
+
+            <span class="nav-spacer"></span>
+
+            <div class="font-size" role="group" aria-label="ขนาดตัวอักษร">
+                <button type="button" data-size="md" aria-pressed="true" aria-label="ขนาดปกติ">ก</button>
+                <button type="button" data-size="lg" aria-pressed="false" aria-label="ขนาดใหญ่">ก</button>
+                <button type="button" data-size="xl" aria-pressed="false" aria-label="ขนาดใหญ่มาก">ก</button>
+            </div>
+
+            @auth
+                <div class="user-chip">
+                    <span class="avatar" aria-hidden="true">{{ mb_substr(auth()->user()->name, 0, 1) }}</span>
+                    <span class="who">{{ auth()->user()->name }}<small>{{ auth()->user()->roleLabel() }}</small></span>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button class="btn btn-ghost" type="submit">ออกจากระบบ</button>
+                    </form>
+                </div>
+            @else
+                @unless (request()->routeIs('login'))
+                    <a class="btn btn-primary" href="{{ route('login') }}">เข้าสู่ระบบ</a>
+                @endunless
+            @endauth
+        </div>
+    </header>
+
+    @yield('body')
+
+    <footer class="site-footer">
+        <div class="container">
+            <span>© {{ now()->year + 543 }} MSC Report · คณะวิทยาศาสตร์การแพทย์ มหาวิทยาลัยพะเยา</span>
+            <span>เข้าสู่ระบบด้วย UP Account ผ่าน MEDSCI ACC</span>
+        </div>
+    </footer>
+
+    <script src="{{ asset('js/font-size.js') }}"></script>
+    @stack('scripts')
+</body>
+</html>

@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MSC Report — สรุปผลงานเป็นรายงานผู้บริหาร</title>
+<!-- Sarabun (Google Fonts) คือฟอนต์ตระกูลเดียวกับ TH Sarabun New ที่ปรับมาสำหรับหน้าจอ
+     ตอนทำจริงให้เก็บไฟล์ฟอนต์ไว้ในโปรเจกต์ (public/fonts) ไม่โหลดจาก CDN -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* สีหลัก — เปลี่ยนเป็นสีองค์กรได้ที่นี่ที่เดียว */
+    --primary: #1f3b6e;
+    --primary-hover: #17305c;
+    --primary-soft: #e8eef8;
+    --accent: #b7822b;
+    --accent-soft: #fbf3e4;
+    --success: #1e7a4c;
+    --success-soft: #e5f4ec;
+
+    --text: #1b2330;        /* contrast กับพื้นขาว ~15:1 */
+    --text-muted: #445064;  /* contrast ~8:1 — ไม่ใช้เทาอ่อนกว่านี้ */
+    --border: #d5dbe5;
+    --bg: #f6f7fa;
+    --surface: #ffffff;
+
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow: 0 1px 2px rgba(20, 30, 50, .06), 0 8px 24px rgba(20, 30, 50, .08);
+    --max: 1200px;
+  }
+
+  /* ขนาดตัวอักษรพื้นฐาน 18px (ปรับได้ 3 ระดับจากปุ่มบนหัวเว็บ) — ทุกขนาดอื่นใช้ rem */
+  html { font-size: 18px; scroll-behavior: smooth; }
+  html[data-size="lg"] { font-size: 20px; }
+  html[data-size="xl"] { font-size: 22px; }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Sarabun", "TH Sarabun New", "Leelawadee UI", Tahoma, sans-serif;
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { line-height: 1.35; margin: 0 0 .5em; font-weight: 700; }
+  p { margin: 0 0 1em; }
+  a { color: var(--primary); }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+
+  .container { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+  @media (max-width: 600px) { .container { padding: 0 16px; } }
+
+  /* ---------- ปุ่ม ---------- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+    min-height: 2.9rem; padding: .55rem 1.5rem;
+    font: inherit; font-weight: 600; font-size: 1rem;
+    border-radius: 999px; border: 2px solid transparent;
+    text-decoration: none; cursor: pointer; transition: background .15s, border-color .15s;
+  }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-hover); }
+  .btn-outline { background: var(--surface); color: var(--primary); border-color: var(--primary); }
+  .btn-outline:hover { background: var(--primary-soft); }
+  .btn-lg { min-height: 3.3rem; padding: .7rem 2rem; font-size: 1.1rem; }
+  .btn svg { width: 1.2em; height: 1.2em; }
+
+  /* ---------- Header ---------- */
+  header.site {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(255,255,255,.96); backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav { display: flex; align-items: center; gap: 1.5rem; min-height: 4.2rem; }
+  .brand { display: flex; align-items: center; gap: .6rem; text-decoration: none; color: var(--text); font-weight: 700; font-size: 1.25rem; white-space: nowrap; }
+  .nav .btn { white-space: nowrap; }
+  .brand-mark {
+    width: 2.2rem; height: 2.2rem; border-radius: 10px; background: var(--primary);
+    display: grid; place-items: center; color: #fff;
+  }
+  .brand-mark svg { width: 1.3rem; height: 1.3rem; }
+  .nav-links { display: flex; gap: 1.5rem; margin-left: auto; }
+  .nav-links a { color: var(--text); text-decoration: none; font-weight: 500; white-space: nowrap; }
+  .nav-links a:hover { color: var(--primary); text-decoration: underline; text-underline-offset: 6px; }
+
+  .font-size { display: flex; align-items: center; gap: .25rem; border: 1px solid var(--border); border-radius: 999px; padding: .15rem; }
+  .font-size span { font-size: .85rem; color: var(--text-muted); padding: 0 .4rem 0 .6rem; white-space: nowrap; }
+  .font-size button {
+    font: inherit; font-weight: 700; border: 0; background: transparent; color: var(--text);
+    width: 2.2rem; height: 2.2rem; border-radius: 999px; cursor: pointer; line-height: 1;
+  }
+  .font-size button[aria-pressed="true"] { background: var(--primary); color: #fff; }
+  .font-size button:nth-of-type(1) { font-size: .85rem; }
+  .font-size button:nth-of-type(2) { font-size: 1rem; }
+  .font-size button:nth-of-type(3) { font-size: 1.2rem; }
+
+  @media (max-width: 1240px) {
+    .nav-links { display: none; }
+    .font-size { margin-left: auto; }
+  }
+  @media (max-width: 600px) {
+    .font-size span { display: none; }
+    .nav { gap: .6rem; }
+    .nav .btn { padding: .4rem .9rem; min-height: 2.4rem; font-size: .9rem; }
+    .font-size button { width: 1.9rem; height: 1.9rem; }
+    .brand-text { display: none; }
+  }
+
+  /* ---------- Hero ---------- */
+  .hero { padding: 4rem 0 3.5rem; background: linear-gradient(180deg, #fff 0%, var(--bg) 100%); }
+  .hero-grid { display: grid; grid-template-columns: 1fr 1.05fr; gap: 3rem; align-items: center; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: .4rem;
+    background: var(--accent-soft); color: #7a5414; font-weight: 600;
+    padding: .25rem .9rem; border-radius: 999px; font-size: .9rem; margin-bottom: 1rem;
+  }
+  .hero h1 { font-size: 2.6rem; letter-spacing: -.01em; }
+  .hero h1 em { font-style: normal; color: var(--primary); white-space: nowrap; }
+  .hero .lead { font-size: 1.2rem; color: var(--text-muted); max-width: 34em; }
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1.8rem 0 1.2rem; }
+  .hero-note { display: flex; flex-wrap: wrap; gap: .4rem 1.5rem; color: var(--text-muted); font-size: .95rem; }
+  .hero-note span { display: inline-flex; align-items: center; gap: .35rem; }
+  .hero-note svg { width: 1.1em; height: 1.1em; color: var(--success); }
+
+  @media (max-width: 1100px) {
+    .hero { padding: 2.5rem 0; }
+    .hero-grid { grid-template-columns: 1fr; gap: 2rem; }
+    .preview { max-width: 46rem; }
+    .hero h1 { font-size: 2.1rem; }
+  }
+  @media (max-width: 600px) { .hero h1 { font-size: 1.75rem; } }
+
+  /* ตัวอย่าง Dashboard ใน Hero */
+  .preview {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 1.4rem;
+  }
+  .preview-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; }
+  .preview-head h3 { font-size: 1.1rem; margin: 0; }
+  .preview-head small { color: var(--text-muted); font-size: .85rem; display: block; }
+  .tag { font-size: .85rem; font-weight: 600; padding: .1rem .7rem; border-radius: 999px; background: var(--primary-soft); color: var(--primary); white-space: nowrap; }
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: .8rem; margin-bottom: 1rem; }
+  .kpi { background: var(--bg); border-radius: var(--radius-sm); padding: .7rem .9rem; }
+  .kpi .label { font-size: .85rem; color: var(--text-muted); line-height: 1.4; }
+  .kpi .value { font-size: 1.6rem; font-weight: 700; line-height: 1.3; }
+  .kpi .delta { font-size: .85rem; font-weight: 600; color: var(--success); }
+  .chart { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .8rem .9rem .4rem; }
+  .chart-title { font-size: .9rem; font-weight: 600; margin-bottom: .3rem; }
+  .chart svg { width: 100%; height: auto; display: block; }
+  .chart text { font-family: inherit; fill: var(--text-muted); }
+  .summary { margin-top: 1rem; background: var(--accent-soft); border-radius: var(--radius-sm); padding: .7rem 1rem; font-size: .92rem; }
+  .summary strong { color: #7a5414; }
+  @media (max-width: 600px) {
+    .kpis { grid-template-columns: 1fr 1fr; }
+    .kpi:last-child { grid-column: span 2; }
+  }
+
+  /* ---------- Sections ---------- */
+  section.block { padding: 4.5rem 0; }
+  section.block.alt { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .section-head { text-align: center; max-width: 40em; margin: 0 auto 2.8rem; }
+  .section-head h2 { font-size: 2rem; }
+  .section-head p { color: var(--text-muted); font-size: 1.1rem; }
+  @media (max-width: 600px) { section.block { padding: 3rem 0; } .section-head h2 { font-size: 1.6rem; } }
+
+  /* 3 ขั้นตอน */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; counter-reset: step; }
+  .step { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.8rem; position: relative; }
+  .step-num {
+    width: 3rem; height: 3rem; border-radius: 50%; background: var(--primary); color: #fff;
+    display: grid; place-items: center; font-weight: 700; font-size: 1.3rem; margin-bottom: 1rem;
+  }
+  .step h3 { font-size: 1.3rem; }
+  .step p { color: var(--text-muted); margin: 0; }
+  @media (max-width: 900px) { .steps { grid-template-columns: 1fr; } }
+
+  /* AI ถามก่อนสรุป */
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; }
+  .split h2 { font-size: 2rem; }
+  .checks { list-style: none; padding: 0; margin: 1.5rem 0 0; display: grid; gap: .9rem; }
+  .checks li { display: flex; gap: .8rem; align-items: flex-start; }
+  .checks svg { flex: none; width: 1.6rem; height: 1.6rem; color: var(--success); margin-top: .15rem; }
+  @media (max-width: 900px) { .split { grid-template-columns: 1fr; gap: 2rem; } }
+
+  .chat { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.4rem; display: grid; gap: 1rem; }
+  .bubble { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); border-top-left-radius: 4px; padding: 1rem 1.2rem; box-shadow: var(--shadow); }
+  .bubble-who { display: flex; align-items: center; gap: .5rem; font-size: .85rem; font-weight: 600; color: var(--primary); margin-bottom: .4rem; }
+  .bubble-who i { width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--primary-soft); display: grid; place-items: center; font-style: normal; }
+  .bubble p { margin: 0 0 .8rem; font-weight: 600; font-size: 1.05rem; }
+  .bubble .hint { font-weight: 400; font-size: .9rem; color: var(--text-muted); margin: -.5rem 0 .8rem; }
+  .choices { display: grid; gap: .55rem; }
+  .choice {
+    display: flex; align-items: center; gap: .7rem; text-align: left;
+    font: inherit; font-size: 1rem; padding: .6rem 1rem; min-height: 2.8rem;
+    border: 2px solid var(--border); background: var(--surface); border-radius: var(--radius-sm); cursor: pointer; color: var(--text);
+  }
+  .choice:hover { border-color: var(--primary); }
+  .choice .dot { width: 1.2rem; height: 1.2rem; border-radius: 50%; border: 2px solid var(--text-muted); flex: none; }
+  .choice[aria-checked="true"] { border-color: var(--primary); background: var(--primary-soft); font-weight: 600; }
+  .choice[aria-checked="true"] .dot { border-color: var(--primary); background: radial-gradient(var(--primary) 45%, transparent 50%); }
+  .bubble.me { justify-self: end; background: var(--primary); color: #fff; border-color: var(--primary); border-top-left-radius: var(--radius); border-top-right-radius: 4px; padding: .7rem 1.2rem; }
+
+  /* Export */
+  .exports { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+  .export { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.8rem; }
+  .export-icon { width: 3.4rem; height: 3.4rem; border-radius: 14px; display: grid; place-items: center; margin-bottom: 1rem; }
+  .export-icon svg { width: 1.8rem; height: 1.8rem; }
+  .export h3 { font-size: 1.3rem; margin-bottom: .3rem; }
+  .export p { color: var(--text-muted); margin: 0; }
+  .ico-pdf { background: #fdecea; color: #b42318; }
+  .ico-jpg { background: var(--primary-soft); color: var(--primary); }
+  .ico-png { background: var(--success-soft); color: var(--success); }
+  @media (max-width: 900px) { .exports { grid-template-columns: 1fr; } }
+
+  /* ความปลอดภัย */
+  .trust { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+  .trust div { display: flex; gap: 1rem; align-items: flex-start; }
+  .trust svg { flex: none; width: 2.2rem; height: 2.2rem; color: var(--primary); }
+  .trust h3 { font-size: 1.15rem; margin-bottom: .2rem; }
+  .trust p { color: var(--text-muted); margin: 0; }
+  @media (max-width: 900px) { .trust { grid-template-columns: 1fr; } }
+
+  /* FAQ */
+  .faq { max-width: 50rem; margin: 0 auto; display: grid; gap: .8rem; }
+  .faq details { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .faq summary {
+    cursor: pointer; list-style: none; padding: 1rem 1.3rem; font-weight: 600; font-size: 1.1rem;
+    display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: "+"; font-size: 1.6rem; line-height: 1; color: var(--primary); }
+  .faq details[open] summary::after { content: "−"; }
+  .faq details p { padding: 0 1.3rem 1.1rem; margin: 0; color: var(--text-muted); }
+
+  /* CTA + Footer */
+  .cta { background: var(--primary); color: #fff; border-radius: 24px; padding: 3rem; text-align: center; }
+  .cta h2 { font-size: 2rem; }
+  .cta p { color: #dbe4f3; font-size: 1.1rem; }
+  .cta .btn-primary { background: #fff; color: var(--primary); }
+  .cta .btn-primary:hover { background: var(--primary-soft); }
+  @media (max-width: 600px) { .cta { padding: 2rem 1.2rem; } .cta h2 { font-size: 1.6rem; } }
+
+  footer.site { padding: 2.5rem 0; color: var(--text-muted); font-size: .9rem; }
+  footer.site .container { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="container nav">
+    <a class="brand" href="#">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+      </span>
+      <span class="brand-text">MSC Report</span>
+    </a>
+    <nav class="nav-links" aria-label="เมนูหลัก">
+      <a href="#how">วิธีใช้งาน</a>
+      <a href="#export">รูปแบบรายงาน</a>
+      <a href="#security">ความปลอดภัย</a>
+      <a href="#faq">คำถามที่พบบ่อย</a>
+    </nav>
+    <div class="font-size" role="group" aria-label="ขนาดตัวอักษร">
+      <span>ขนาดตัวอักษร</span>
+      <button type="button" data-size="md" aria-pressed="true" aria-label="ปกติ">ก</button>
+      <button type="button" data-size="lg" aria-pressed="false" aria-label="ใหญ่">ก</button>
+      <button type="button" data-size="xl" aria-pressed="false" aria-label="ใหญ่มาก">ก</button>
+    </div>
+    <a class="btn btn-primary" href="#login">เข้าสู่ระบบ</a>
+  </div>
+</header>
+
+<main>
+  <!-- ===== Hero ===== -->
+  <section class="hero">
+    <div class="container hero-grid">
+      <div>
+        <div class="eyebrow">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>
+          มีผู้ช่วย AI ขององค์กรช่วยสรุป
+        </div>
+        <h1>เปลี่ยนไฟล์ Excel<br>เป็น<em>รายงานผู้บริหาร</em><br>ได้ในไม่กี่นาที</h1>
+        <p class="lead">อัปโหลดไฟล์ผลงานของคุณ ตอบคำถามสั้น ๆ ว่าอยากสรุปแบบไหน แล้วรับรายงานที่สวยงาม อ่านง่าย พร้อมพิมพ์หรือส่งต่อทันที</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary btn-lg" href="#login">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
+            เริ่มสร้างรายงาน
+          </a>
+          <a class="btn btn-outline btn-lg" href="#how">ดูวิธีใช้งาน</a>
+        </div>
+        <div class="hero-note">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>ไม่ต้องทำกราฟเอง</span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>ตัวเลขคำนวณจากข้อมูลจริง</span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>ส่งออก PDF / JPEG / PNG</span>
+        </div>
+      </div>
+
+      <!-- ตัวอย่างรายงาน -->
+      <div class="preview" role="img" aria-label="ตัวอย่างรายงาน: จำนวนเรื่องทั้งหมด 1,284 เรื่อง เพิ่มขึ้น 12 เปอร์เซ็นต์ เสร็จภายใน 7 วัน 86 เปอร์เซ็นต์">
+        <div class="preview-head">
+          <div>
+            <h3>สรุปผลการดำเนินงาน ปีงบประมาณ 2569</h3>
+            <small>งานรับเรื่องร้องเรียน · ข้อมูล ณ 30 ก.ย. 2569</small>
+          </div>
+          <span class="tag">ตัวอย่าง</span>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><div class="label">เรื่องทั้งหมด</div><div class="value">1,284</div><div class="delta">▲ 12% จากปีก่อน</div></div>
+          <div class="kpi"><div class="label">เสร็จภายใน 7 วัน</div><div class="value">86%</div><div class="delta">▲ เกินเป้า 80%</div></div>
+          <div class="kpi"><div class="label">งบประมาณที่ใช้</div><div class="value">2.4 <small style="font-size:.6em">ล้านบาท</small></div><div class="delta" style="color:var(--text-muted)">71% ของงบทั้งปี</div></div>
+        </div>
+        <div class="chart">
+          <div class="chart-title">จำนวนเรื่องรายเดือน</div>
+          <svg viewBox="0 0 480 170" aria-hidden="true">
+            <g stroke="#e3e7ee" stroke-width="1">
+              <line x1="30" y1="20" x2="475" y2="20"/><line x1="30" y1="65" x2="475" y2="65"/><line x1="30" y1="110" x2="475" y2="110"/>
+            </g>
+            <line x1="30" y1="140" x2="475" y2="140" stroke="#b8c1cf" stroke-width="1.5"/>
+            <g font-size="13" text-anchor="end"><text x="24" y="24">150</text><text x="24" y="69">100</text><text x="24" y="114">50</text></g>
+            <g fill="#1f3b6e">
+              <rect x="40"  y="68"  width="24" height="72" rx="4"/>
+              <rect x="77"  y="59"  width="24" height="81" rx="4"/>
+              <rect x="114" y="77"  width="24" height="63" rx="4"/>
+              <rect x="151" y="50"  width="24" height="90" rx="4"/>
+              <rect x="188" y="62"  width="24" height="78" rx="4"/>
+              <rect x="225" y="44"  width="24" height="96" rx="4"/>
+              <rect x="262" y="56"  width="24" height="84" rx="4"/>
+              <rect x="299" y="38"  width="24" height="102" rx="4"/>
+              <rect x="336" y="47"  width="24" height="93" rx="4"/>
+              <rect x="373" y="32"  width="24" height="108" rx="4"/>
+              <rect x="410" y="41"  width="24" height="99" rx="4"/>
+              <rect x="447" y="26"  width="24" height="114" rx="4" fill="#b7822b"/>
+            </g>
+            <text x="459" y="20" font-size="13" text-anchor="middle" font-weight="700" style="fill:#7a5414">127</text>
+            <g font-size="13" text-anchor="middle">
+              <text x="52" y="160">ต.ค.</text><text x="89" y="160">พ.ย.</text><text x="126" y="160">ธ.ค.</text><text x="163" y="160">ม.ค.</text>
+              <text x="200" y="160">ก.พ.</text><text x="237" y="160">มี.ค.</text><text x="274" y="160">เม.ย.</text><text x="311" y="160">พ.ค.</text>
+              <text x="348" y="160">มิ.ย.</text><text x="385" y="160">ก.ค.</text><text x="422" y="160">ส.ค.</text><text x="459" y="160">ก.ย.</text>
+            </g>
+          </svg>
+        </div>
+        <div class="summary"><strong>สรุปโดย AI:</strong> ปริมาณงานเพิ่มต่อเนื่อง สูงสุดในเดือน ก.ย. (127 เรื่อง) แต่ยังดำเนินการเสร็จภายใน 7 วันได้ 86% สูงกว่าเป้าหมาย</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 3 ขั้นตอน ===== -->
+  <section class="block alt" id="how">
+    <div class="container">
+      <div class="section-head">
+        <h2>ใช้งานง่าย เพียง 3 ขั้นตอน</h2>
+        <p>ไม่ต้องมีความรู้ด้านกราฟหรือโปรแกรม แค่มีไฟล์ Excel ที่ใช้อยู่แล้ว</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <h3>อัปโหลดไฟล์ Excel</h3>
+          <p>ลากไฟล์มาวาง หรือกดเลือกไฟล์ ระบบอ่านวันที่ พ.ศ. และตัวเลขภาษาไทยให้อัตโนมัติ</p>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <h3>ตอบคำถามสั้น ๆ</h3>
+          <p>ผู้ช่วย AI ดูข้อมูลของคุณ แล้วถามว่าอยากสรุปช่วงไหน เน้นเรื่องอะไร เพียงกดเลือกคำตอบ</p>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <h3>รับรายงาน พร้อมนำเสนอ</h3>
+          <p>ได้รายงานพร้อมกราฟและบทสรุป ปรับแต่งได้ แล้วส่งออกเป็น PDF หรือรูปภาพ</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== AI ถามก่อนสรุป ===== -->
+  <section class="block">
+    <div class="container split">
+      <div>
+        <h2>AI ถามก่อน<br>เพื่อสรุปให้ตรงใจ</h2>
+        <p style="color:var(--text-muted);font-size:1.1rem">แทนที่จะเดาเอง ผู้ช่วย AI จะดูว่าไฟล์ของคุณมีข้อมูลอะไรบ้าง แล้วเสนอตัวเลือกที่เหมาะกับข้อมูลนั้นจริง ๆ</p>
+        <ul class="checks">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-6"/></svg><span>ทุกตัวเลือกอ้างอิงจากคอลัมน์ในไฟล์ของคุณ</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-6"/></svg><span>ไม่แน่ใจ? กด “ให้ AI เลือกให้” ได้ทุกข้อ</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-6"/></svg><span>ตัวเลขทุกตัวคำนวณจากข้อมูลจริง AI ไม่ได้แต่งตัวเลขขึ้นมาเอง</span></li>
+        </ul>
+      </div>
+
+      <div class="chat" aria-label="ตัวอย่างการถามตอบกับผู้ช่วย AI">
+        <div class="bubble">
+          <div class="bubble-who"><i aria-hidden="true">✦</i> ผู้ช่วย AI</div>
+          <p>ต้องการสรุปช่วงเวลาใด?</p>
+          <div class="hint">ไฟล์ของคุณมีข้อมูลตั้งแต่ ต.ค. 2568 – ก.ย. 2569</div>
+          <div class="choices" role="radiogroup" aria-label="ช่วงเวลา">
+            <button type="button" class="choice" role="radio" aria-checked="true"><span class="dot"></span>ทั้งปีงบประมาณ 2569</button>
+            <button type="button" class="choice" role="radio" aria-checked="false"><span class="dot"></span>แยกรายไตรมาส</button>
+            <button type="button" class="choice" role="radio" aria-checked="false"><span class="dot"></span>เฉพาะเดือนล่าสุด (ก.ย. 2569)</button>
+            <button type="button" class="choice" role="radio" aria-checked="false"><span class="dot"></span>ให้ AI เลือกให้</button>
+          </div>
+        </div>
+        <div class="bubble me">ทั้งปีงบประมาณ 2569</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Export ===== -->
+  <section class="block alt" id="export">
+    <div class="container">
+      <div class="section-head">
+        <h2>ส่งออกได้ตามการใช้งาน</h2>
+        <p>ทุกรูปแบบแสดงภาษาไทยถูกต้อง พร้อมโลโก้ ชื่อผู้จัดทำ และวันที่</p>
+      </div>
+      <div class="exports">
+        <div class="export">
+          <div class="export-icon ico-pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></div>
+          <h3>PDF</h3>
+          <p>สำหรับพิมพ์และแนบหนังสือ มีสารบัญคลิกไปยังแต่ละหัวข้อได้</p>
+        </div>
+        <div class="export">
+          <div class="export-icon ico-jpg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 9"/></svg></div>
+          <h3>JPEG</h3>
+          <p>ส่งทางไลน์หรืออีเมลได้ทันที ความละเอียดสูง อ่านชัดบนมือถือ</p>
+        </div>
+        <div class="export">
+          <div class="export-icon ico-png"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg></div>
+          <h3>PNG</h3>
+          <p>นำไปใส่ในสไลด์นำเสนอที่ประชุม ภาพคมชัด พื้นหลังโปร่งใสได้</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ความปลอดภัย ===== -->
+  <section class="block" id="security">
+    <div class="container">
+      <div class="section-head">
+        <h2>ข้อมูลของคุณปลอดภัย</h2>
+      </div>
+      <div class="trust">
+        <div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
+          <div><h3>ใช้ AI ภายในองค์กร</h3><p>ข้อมูลไม่ถูกส่งไปยังบริการภายนอก</p></div>
+        </div>
+        <div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          <div><h3>ปิดบังข้อมูลส่วนบุคคล</h3><p>เลขบัตรประชาชน เบอร์โทร ชื่อ-สกุล ถูกซ่อนก่อนส่งให้ AI</p></div>
+        </div>
+        <div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+          <div><h3>เห็นเฉพาะเจ้าของ</h3><p>รายงานของคุณจะถูกเห็นเฉพาะคนที่คุณแชร์ให้เท่านั้น</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FAQ ===== -->
+  <section class="block alt" id="faq">
+    <div class="container">
+      <div class="section-head"><h2>คำถามที่พบบ่อย</h2></div>
+      <div class="faq">
+        <details open>
+          <summary>ไฟล์ Excel ต้องมีรูปแบบพิเศษไหม?</summary>
+          <p>ไม่จำเป็น ระบบอ่านไฟล์ที่คุณใช้อยู่ได้เลย แต่ถ้าอยากได้ผลแม่นยำที่สุด สามารถดาวน์โหลด “ไฟล์ Excel แนะนำ” จากระบบไปกรอกได้</p>
+        </details>
+        <details>
+          <summary>ถ้าไม่มี API Key ของ AI ใช้งานได้ไหม?</summary>
+          <p>ใช้ได้ ระบบจะสร้างรายงานให้แบบอัตโนมัติโดยไม่ใช้ AI และยังปรับแต่งและส่งออกได้ครบทุกอย่าง</p>
+        </details>
+        <details>
+          <summary>แก้ไขรายงานหลังจากสร้างแล้วได้หรือไม่?</summary>
+          <p>ได้ เปลี่ยนชนิดกราฟ หัวข้อ สี หรือย้ายตำแหน่งได้ทั้งหมด และระบบเก็บประวัติให้ย้อนกลับได้</p>
+        </details>
+        <details>
+          <summary>ผู้บริหารต้องสมัครสมาชิกเพื่อดูรายงานหรือไม่?</summary>
+          <p>ส่งเป็นไฟล์ PDF หรือรูปภาพได้เลยโดยไม่ต้องสมัคร หรือแชร์ให้ดูในระบบสำหรับผู้บริหารที่มีบัญชีอยู่แล้ว</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CTA ===== -->
+  <section class="block">
+    <div class="container">
+      <div class="cta">
+        <h2>พร้อมสร้างรายงานฉบับแรกแล้วหรือยัง?</h2>
+        <p>ใช้บัญชีเดียวกับระบบขององค์กรเข้าสู่ระบบได้ทันที</p>
+        <a class="btn btn-primary btn-lg" href="#login">เริ่มสร้างรายงาน</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site">
+  <div class="container">
+    <span>© 2569 MSC Report</span>
+    <span>ติดต่อผู้ดูแลระบบ: งานเทคโนโลยีสารสนเทศ</span>
+  </div>
+</footer>
+
+<script>
+  // ปุ่มปรับขนาดตัวอักษร (จำค่าไว้ในเครื่องผู้ใช้)
+  (function () {
+    var root = document.documentElement;
+    var buttons = document.querySelectorAll('.font-size button');
+    function apply(size) {
+      if (size === 'md') root.removeAttribute('data-size'); else root.setAttribute('data-size', size);
+      buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.size === size)); });
+    }
+    var saved = null;
+    try { saved = localStorage.getItem('msc-font-size'); } catch (e) {}
+    if (saved) apply(saved);
+    buttons.forEach(function (b) {
+      b.addEventListener('click', function () {
+        apply(b.dataset.size);
+        try { localStorage.setItem('msc-font-size', b.dataset.size); } catch (e) {}
+      });
+    });
+
+    // ตัวอย่างตัวเลือกคำตอบ AI ให้กดเลือกได้
+    var choices = document.querySelectorAll('.choice');
+    var answer = document.querySelector('.bubble.me');
+    choices.forEach(function (c) {
+      c.addEventListener('click', function () {
+        choices.forEach(function (o) { o.setAttribute('aria-checked', 'false'); });
+        c.setAttribute('aria-checked', 'true');
+        answer.textContent = c.textContent.trim();
+      });
+    });
+  })();
+</script>
+</body>
+</html>

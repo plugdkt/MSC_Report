@@ -1,0 +1,14 @@
+# ข้อมูลจริงของหน่วยงาน — ห้าม commit (มีชื่อบุคลากร/ข้อมูลการเงิน)
+/samples/
+/เอกสารแนบ*
+~$*
+
+# ความลับ
+.env
+src/.env
+
+# Docker volumes / runtime
+/docker/data/
+
+# คู่มือ SSO ภายในคณะ — มีบัญชีทดสอบของระบบกลาง ห้ามเผยแพร่
+/sso_integration_guide.md

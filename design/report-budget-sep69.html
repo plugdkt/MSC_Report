@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>รายงานการใช้จ่ายงบประมาณ ก.ย. 2569</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+<style>
+  :root {
+    --primary: #1f3b6e;
+    --primary-soft: #e8eef8;
+    --committed: #8fa7d1;     /* ผูกพัน (ใบสั่งซื้อ) */
+    --remain: #d9dee7;        /* คงเหลือ */
+    --accent: #b7822b;
+    --accent-soft: #fbf3e4;
+    --accent-text: #7a5414;
+    --good: #1e7a4c;
+    --good-soft: #e5f4ec;
+    --warn: #b42318;
+    --warn-soft: #fdecea;
+    --track: #dfe4ec;
+
+    --text: #1b2330;
+    --text-muted: #445064;
+    --border: #d5dbe5;
+    --bg: #eef1f5;
+    --paper: #ffffff;
+    --radius: 14px;
+  }
+  html { font-size: 18px; }
+  html[data-size="lg"] { font-size: 20px; }
+  html[data-size="xl"] { font-size: 22px; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Sarabun", "TH Sarabun New", "Leelawadee UI", Tahoma, sans-serif;
+    font-size: 1rem; line-height: 1.65; -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { margin: 0; line-height: 1.35; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---------- แถบเครื่องมือ ---------- */
+  .toolbar { position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 1px solid var(--border); }
+  .toolbar-inner { max-width: 1240px; margin: 0 auto; padding: .6rem 24px; display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
+  .back { color: var(--primary); text-decoration: none; font-weight: 600; }
+  .toolbar .spacer { flex: 1; }
+  .flag { display: inline-block; font-size: .85rem; font-weight: 600; padding: .1rem .7rem; border-radius: 999px; background: var(--good-soft); color: var(--good); }
+  .font-size { display: flex; align-items: center; gap: .2rem; border: 1px solid var(--border); border-radius: 999px; padding: .15rem; }
+  .font-size button { font: inherit; font-weight: 700; border: 0; background: transparent; color: var(--text); width: 2.1rem; height: 2.1rem; border-radius: 999px; cursor: pointer; line-height: 1; }
+  .font-size button[aria-pressed="true"] { background: var(--primary); color: #fff; }
+  .font-size button:nth-of-type(1) { font-size: .85rem; }
+  .font-size button:nth-of-type(3) { font-size: 1.15rem; }
+  .btn { display: inline-flex; align-items: center; gap: .45rem; min-height: 2.6rem; padding: .4rem 1.1rem; font: inherit; font-weight: 600; border-radius: 999px; cursor: pointer; border: 2px solid var(--primary); background: #fff; color: var(--primary); }
+  .btn:hover { background: var(--primary-soft); }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: #17305c; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: #fff; padding: .7rem 1.3rem; border-radius: 12px; opacity: 0; pointer-events: none; transition: opacity .2s; max-width: calc(100% - 32px); }
+  .toast.show { opacity: 1; }
+
+  /* ---------- กระดาษ ---------- */
+  .report { max-width: 1240px; margin: 24px auto 48px; padding: 0 24px; }
+  .page { background: var(--paper); border-radius: var(--radius); box-shadow: 0 2px 10px rgba(20,30,50,.08); padding: 2rem 2.2rem; }
+  .page + .page { margin-top: 24px; }
+  @media (max-width: 600px) {
+    .toolbar { position: static; }
+    .toolbar-inner { padding: .5rem 16px; }
+    .report { padding: 0 16px; margin-top: 16px; }
+    .page { padding: 1.2rem 1rem; }
+  }
+
+  .r-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.5rem; border-bottom: 3px solid var(--primary); padding-bottom: 1rem; margin-bottom: 1.4rem; }
+  .r-org { display: flex; gap: .9rem; align-items: center; }
+  .logo { width: 3.2rem; height: 3.2rem; border-radius: 12px; background: var(--primary); color: #fff; display: grid; place-items: center; flex: none; }
+  .logo svg { width: 1.8rem; height: 1.8rem; }
+  .r-head h1 { font-size: 1.7rem; }
+  .r-head .sub { color: var(--text-muted); font-size: 1.05rem; }
+  .r-meta { text-align: right; font-size: .9rem; color: var(--text-muted); line-height: 1.6; white-space: nowrap; }
+  .r-meta strong { color: var(--text); }
+  .end-badge { display: inline-block; margin-top: .3rem; background: var(--accent-soft); color: var(--accent-text); font-weight: 700; padding: .05rem .7rem; border-radius: 999px; }
+  @media (max-width: 800px) { .r-head { flex-direction: column; } .r-meta { text-align: left; white-space: normal; } .r-head h1 { font-size: 1.4rem; } }
+
+  /* KPI */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1rem; }
+  .kpi { border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.2rem; border-top: 6px solid var(--c, var(--border)); }
+  .kpi .label { color: var(--text-muted); font-weight: 500; }
+  .kpi .value { font-size: 1.9rem; font-weight: 700; line-height: 1.25; margin: .15rem 0; font-variant-numeric: tabular-nums; }
+  .kpi .value small { font-size: .5em; font-weight: 600; color: var(--text-muted); margin-left: .2rem; white-space: nowrap; }
+  .kpi .note { font-size: .9rem; color: var(--text-muted); }
+  .kpi .pct { font-weight: 700; font-size: 1.05rem; }
+  @media (max-width: 1100px) { .kpis { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .kpis { grid-template-columns: 1fr; } }
+
+  /* แถบสัดส่วนรวม */
+  .stackbar { margin: 0 0 1.4rem; }
+  .stackbar .bar { display: flex; height: 2.2rem; border-radius: 10px; overflow: hidden; }
+  .stackbar .bar div { display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: .95rem; white-space: nowrap; }
+  .stackbar .legend { display: flex; flex-wrap: wrap; gap: .3rem 1.4rem; margin-top: .45rem; font-size: .92rem; color: var(--text-muted); }
+  .sw { width: .95rem; height: .95rem; border-radius: 3px; display: inline-block; vertical-align: -.1rem; margin-right: .35rem; }
+
+  /* บทสรุป */
+  .summary { background: var(--accent-soft); border-radius: var(--radius); padding: 1.1rem 1.4rem; margin-bottom: 1.4rem; }
+  .summary h2 { font-size: 1.15rem; color: var(--accent-text); display: flex; align-items: center; gap: .4rem; margin-bottom: .5rem; }
+  .summary ol { margin: 0; padding-left: 1.4rem; display: grid; gap: .35rem; }
+  .summary li::marker { font-weight: 700; color: var(--accent-text); }
+  .summary .ai-note { font-size: .85rem; color: var(--text-muted); margin-top: .6rem; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+  @media (max-width: 1000px) { .grid-2 { grid-template-columns: 1fr; } }
+  .card { border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.2rem 1.1rem; min-width: 0; }
+  .card h2 { font-size: 1.15rem; }
+  .card .desc { font-size: .9rem; color: var(--text-muted); margin-bottom: .4rem; }
+  .chart { width: 100%; height: 330px; }
+  .chart.tall { height: 460px; }
+  .legend-inline { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; font-size: .9rem; color: var(--text-muted); }
+
+  /* ตาราง */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: .92rem; }
+  th, td { padding: .55rem .6rem; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  td:first-child { white-space: normal; min-width: 12rem; }
+  thead th { color: var(--text-muted); font-weight: 600; border-bottom: 2px solid var(--text-muted); vertical-align: bottom; line-height: 1.35; }
+  tfoot td { font-weight: 700; border-top: 2px solid var(--text-muted); border-bottom: 0; }
+  .cell-bar { display: flex; align-items: center; gap: .5rem; justify-content: flex-end; }
+  .mini { position: relative; width: 5.5rem; height: .6rem; background: var(--track); border-radius: 999px; overflow: hidden; display: flex; }
+  .mini i { display: block; height: 100%; }
+  .pct-val { min-width: 3.2rem; font-weight: 600; }
+  .low { color: var(--warn); }
+  .neg { color: var(--warn); }
+  .pos { color: var(--good); }
+
+  .list { margin: .2rem 0 0; padding-left: 1.2rem; display: grid; gap: .3rem; }
+  .list li { padding-left: .2rem; }
+  .list .amt { float: right; font-weight: 700; font-variant-numeric: tabular-nums; margin-left: 1rem; }
+
+  .dq { border: 1px dashed var(--accent); background: #fffdf8; }
+  .dq ul { margin: .3rem 0 0; padding-left: 1.2rem; display: grid; gap: .35rem; font-size: .95rem; }
+
+  .signs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; margin-top: 1.8rem; text-align: center; font-size: .95rem; }
+  .signs .line { border-bottom: 1px dotted var(--text-muted); height: 2.4rem; margin: 0 1.2rem .4rem; }
+  .signs .role { color: var(--text-muted); }
+  @media (max-width: 700px) { .signs { grid-template-columns: 1fr; } }
+
+  .section-title { font-size: 1.3rem; margin: 0 0 1rem; display: flex; align-items: center; gap: .6rem; }
+  .section-title::before { content: ""; width: 6px; height: 1.3em; background: var(--primary); border-radius: 3px; }
+  .r-foot { margin-top: 1.4rem; padding-top: .8rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem; font-size: .85rem; color: var(--text-muted); }
+
+  @page { size: A4 landscape; margin: 10mm; }
+  @media print {
+    html { font-size: 12.5px; }
+    body { background: #fff; }
+    .toolbar, .toast { display: none !important; }
+    .report { margin: 0; padding: 0; max-width: none; }
+    .page { box-shadow: none; border-radius: 0; padding: 0; }
+    .page + .page { margin-top: 0; break-before: page; }
+    .card, .kpi, .summary, table, .signs { break-inside: avoid; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="toolbar-inner">
+    <a class="back" href="landing.html">‹ กลับ</a>
+    <span class="flag" style="background:var(--accent-soft);color:var(--accent-text)">ข้อมูลตัวอย่าง (สมมติ) · ต้นแบบ</span>
+    <span class="spacer"></span>
+    <div class="font-size" role="group" aria-label="ขนาดตัวอักษร">
+      <button type="button" data-size="md" aria-pressed="true" aria-label="ขนาดปกติ">ก</button>
+      <button type="button" data-size="lg" aria-pressed="false" aria-label="ขนาดใหญ่">ก</button>
+      <button type="button" data-size="xl" aria-pressed="false" aria-label="ขนาดใหญ่มาก">ก</button>
+    </div>
+    <button type="button" class="btn" data-export="jpeg">JPEG</button>
+    <button type="button" class="btn" data-export="png">PNG</button>
+    <button type="button" class="btn btn-primary" data-export="pdf">ส่งออก PDF</button>
+  </div>
+</div>
+
+<main class="report">
+  <!-- ================= หน้า 1 ================= -->
+  <section class="page" aria-label="หน้า 1 ภาพรวม">
+    <header class="r-head">
+      <div class="r-org">
+        <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div>
+        <div>
+          <h1>รายงานผลการใช้จ่ายงบประมาณ <span style="white-space:nowrap">ปีงบประมาณ พ.ศ. 2569</span></h1>
+          <div class="sub">ประจำเดือนกันยายน 2569 · คณะวิทยาศาสตร์การแพทย์ มหาวิทยาลัยพะเยา</div>
+        </div>
+      </div>
+      <div class="r-meta">
+        ข้อมูล ณ วันที่ <strong>30 กันยายน 2569</strong><br>
+        ผู้รายงาน <strong>นักวิชาการเงินและบัญชี</strong><br>
+        <span class="end-badge">สิ้นปีงบประมาณ</span>
+      </div>
+    </header>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="stackbar" id="stackbar"></div>
+
+    <div class="summary">
+      <h2><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>บทสรุปสำหรับผู้บริหาร</h2>
+      <ol id="summary"></ol>
+      <div class="ai-note">ต้นแบบ: ข้อความนี้เขียนจากตัวเลขที่ระบบคำนวณ (ในระบบจริง AI เป็นผู้เรียบเรียง และระบบตรวจตัวเลขให้ตรงกับข้อมูล)</div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h2>สัดส่วนการใช้งบประมาณ แยกตามงบรายจ่าย</h2>
+        <div class="desc">ร้อยละของงบที่ได้รับ (หลังโอนย้าย) ของแต่ละงบ</div>
+        <div class="legend-inline">
+          <span><i class="sw" style="background:var(--primary)"></i>ใช้จริง</span>
+          <span><i class="sw" style="background:var(--committed)"></i>ผูกพัน (ใบสั่งซื้อ)</span>
+          <span><i class="sw" style="background:var(--remain)"></i>คงเหลือ</span>
+        </div>
+        <div id="c-groups" class="chart" role="img" aria-label="สัดส่วนการใช้งบแยกตามงบรายจ่าย งบเงินอุดหนุนคงเหลือมากที่สุด"></div>
+      </div>
+      <div class="card">
+        <h2>เงินคงเหลือ <span id="rem-total"></span> ล้านบาท อยู่ที่หมวดใด</h2>
+        <div class="desc" id="rem-desc">หน่วย: ล้านบาท</div>
+        <div id="c-remaining" class="chart" role="img" aria-label="เงินคงเหลือแยกตามหมวดรายจ่าย"></div>
+      </div>
+    </div>
+
+    <footer class="r-foot">
+      <span>ข้อมูลตัวอย่าง (สมมติ) จัดรูปแบบตามไฟล์รายงานเงินคงเหลือประจำเดือน</span>
+      <span>สร้างด้วย MSC Report · หน้า 1/2</span>
+    </footer>
+  </section>
+
+  <!-- ================= หน้า 2 ================= -->
+  <section class="page" aria-label="หน้า 2 รายละเอียด">
+    <h2 class="section-title">รายละเอียดตามประเภทรายจ่าย</h2>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ประเภทรายจ่าย</th><th>งบที่ได้รับ<br>จัดสรร</th><th>ปรับปรุง /<br>โอนย้าย</th><th>งบหลัง<br>โอนย้าย</th>
+              <th>ใบสั่งซื้อ<br>(ผูกพัน)</th><th>ใช้จริง</th><th>คงเหลือ</th><th>สัดส่วนการใช้</th>
+            </tr>
+          </thead>
+          <tbody id="cat-rows"></tbody>
+          <tfoot id="cat-foot"></tfoot>
+        </table>
+      </div>
+      <div class="desc" style="margin-top:.5rem">หน่วย: บาท · แถบสี = ใช้จริง / ผูกพัน / คงเหลือ · ข้อมูลสมมติ</div>
+    </div>
+
+    <div class="grid-2" style="margin-top:1.2rem">
+      <div class="card">
+        <h2>การใช้จ่ายเฉพาะเดือนกันยายน 2569</h2>
+        <div class="desc">รวม <b id="sep-total"></b> ล้านบาท · หน่วยในกราฟ: ล้านบาท</div>
+        <div id="c-sep" class="chart tall" role="img" aria-label="การใช้จ่ายเดือนกันยายน แยกตามหมวด"></div>
+      </div>
+      <div style="display:grid; gap:1.2rem; align-content:start">
+        <div class="card">
+          <h2>รายการคงเหลือสูงสุด 5 อันดับ</h2>
+          <ol class="list" id="top-rem"></ol>
+        </div>
+        <div class="card">
+          <h2>กันเงินไว้เบิกเหลื่อมปี (มีสัญญา)</h2>
+          <ol class="list" id="carry"></ol>
+          <div class="desc" style="margin-top:.4rem">รวม <b id="carry-total"></b> บาท</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card dq" style="margin-top:1.2rem">
+      <h2>ข้อสังเกตจากการตรวจข้อมูล</h2>
+      <ul>
+        <li>✅ ตรวจสมดุลทุกรายการ: งบตั้งต้น + ปรับปรุง + โอนย้าย = ใบสั่งซื้อ + ใช้จริง + กันเงิน + คงเหลือ</li>
+        <li>⚠️ ตัวอย่างข้อสังเกต: พบ 1 แถวที่ยอดสะสมเดือนก่อนมีค่า แต่เดือนปัจจุบันว่าง (ยอดสะสมลดลง) — ควรตรวจสอบต้นฉบับ</li>
+        <li>ℹ️ รหัสกองทุนและประเภทเงินยังไม่มีชื่อในไฟล์ — ควรมีตารางรหัสในระบบเพื่อแสดงชื่อแทนรหัส</li>
+      </ul>
+    </div>
+
+    <div class="signs">
+      <div><div class="line"></div>ผู้รายงาน<div class="role">นักวิชาการเงินและบัญชี</div></div>
+      <div><div class="line"></div>ผู้ทาน<div class="role">ผู้รักษาการแทน หัวหน้าสำนักงาน</div></div>
+      <div><div class="line"></div>ผู้ตรวจ<div class="role">รองคณบดี ฝ่ายบริหาร</div></div>
+    </div>
+
+    <footer class="r-foot">
+      <span>ยอดเดือน ก.ย. คำนวณจากยอดสะสม ก.ย. − ส.ค. (ชีต ITA)</span>
+      <span>สร้างด้วย MSC Report · หน้า 2/2</span>
+    </footer>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  // ======== ผลรวมที่คำนวณจากไฟล์ (ในระบบจริงมาจาก AggregationEngine) ========
+  // base = งบตั้งต้น, trf = ปรับปรุง+โอนย้าย, po = ใบสั่งซื้อ, used = ใช้จริง, rem = คงเหลือ, sep = ใช้จ่ายเฉพาะเดือน ก.ย.
+  var CATS = [
+    {"name": "ค่าจ้างลูกจ้างชั่วคราว", "base": 610000, "trf": 0, "po": 12259.42, "used": 592362.34, "rem": 5378.24, "sep": 50350.8},
+    {"name": "ค่าตอบแทน", "base": 520000, "trf": 30000, "po": 44015.8, "used": 391413.52, "rem": 114570.68, "sep": 66540.3},
+    {"name": "ค่าใช้สอย", "base": 2150000, "trf": 350000, "po": 50056.0, "used": 1850700.25, "rem": 599243.75, "sep": 444168.06},
+    {"name": "ค่าวัสดุ", "base": 860000, "trf": 420000, "po": 12801.25, "used": 1100894.59, "rem": 166304.16, "sep": 77062.62},
+    {"name": "ค่าสาธารณูปโภค", "base": 45000, "trf": 0, "po": 3202.16, "used": 23611.01, "rem": 18186.83, "sep": 2597.21},
+    {"name": "ครุภัณฑ์", "base": 1200000, "trf": 4100000, "po": 1908070.77, "used": 3233664.91, "rem": 158264.32, "sep": 873089.53},
+    {"name": "สิ่งก่อสร้าง", "base": 0, "trf": 380000, "po": 361020.53, "used": 821.52, "rem": 18157.95, "sep": 0.0},
+    {"name": "อุดหนุนจัดการศึกษา (กองทุน A)", "base": 1350000, "trf": 1200000, "po": 0.0, "used": 867706.13, "rem": 1682293.87, "sep": 104124.74},
+    {"name": "อุดหนุนจัดการศึกษา (กองทุน B)", "base": 980000, "trf": -40000, "po": 37607.9, "used": 818608.01, "rem": 83784.09, "sep": 49116.48},
+    {"name": "อุดหนุนทำนุบำรุงศิลปะและวัฒนธรรม", "base": 120000, "trf": 0, "po": 0.0, "used": 114768.89, "rem": 5231.11, "sep": 5738.44},
+    {"name": "อุดหนุนวิจัย", "base": 300000, "trf": 450000, "po": 37528.93, "used": 675080.98, "rem": 37390.09, "sep": 168770.24},
+    {"name": "อุดหนุนบริการวิชาการแก่สังคม", "base": 90000, "trf": 0, "po": 0.0, "used": 52975.97, "rem": 37024.03, "sep": 31785.58}
+  ];
+  var GROUPS = [
+    {"name": "งบบุคลากร", "alloc": 610000, "po": 12259.42, "used": 592362.34, "rem": 5378.24},
+    {"name": "งบดำเนินงาน", "alloc": 4375000, "po": 110075.21, "used": 3366619.37, "rem": 898305.42},
+    {"name": "งบลงทุน", "alloc": 5680000, "po": 2269091.3, "used": 3234486.43, "rem": 176422.27},
+    {"name": "งบเงินอุดหนุน", "alloc": 4450000, "po": 75136.83, "used": 2529139.98, "rem": 1845723.19}
+  ];
+  var TOP_REM = [
+    {"item": "โครงการพัฒนาหลักสูตรใหม่ (ยังไม่เบิกจ่าย)", "rem": 1143959.83},
+    {"item": "ค่าเบี้ยเลี้ยง ค่าที่พัก และค่าพาหนะ", "rem": 215727.75},
+    {"item": "ค่าซ่อมแซม/ค่าซ่อมบำรุงรักษา", "rem": 131833.62},
+    {"item": "โครงการสัมมนาเชิงปฏิบัติการ", "rem": 151406.45},
+    {"item": "ค่าวัสดุการศึกษา", "rem": 91467.29}
+  ];
+  var CARRY = [
+    {"item": "จ้างปรับปรุงอาคารปฏิบัติการ (ตัวอย่าง)", "amt": 353800.12},
+    {"item": "ครุภัณฑ์การศึกษา ชุดที่ 1 (ตัวอย่าง)", "amt": 152645.66},
+    {"item": "ครุภัณฑ์การศึกษา ชุดที่ 2 (ตัวอย่าง)", "amt": 1354730.25}
+  ];
+
+  // ======== คำนวณ ========
+  var T = CATS.reduce(function (a, c) {
+    a.base += c.base; a.trf += c.trf; a.po += c.po; a.used += c.used; a.rem += c.rem; a.sep += c.sep; return a;
+  }, { base: 0, trf: 0, po: 0, used: 0, rem: 0, sep: 0 });
+  T.alloc = T.base + T.trf;
+  CATS.forEach(function (c) { c.alloc = c.base + c.trf; });
+
+  function baht(n) { return n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function mb(n) { return (n / 1e6).toFixed(2); }
+  function p(n, d) { return d ? (n / d * 100) : 0; }
+  function p1(n, d) { return p(n, d).toFixed(1); }
+
+  var css = getComputedStyle(document.documentElement);
+  var COL = {
+    used: css.getPropertyValue('--primary').trim(),
+    po: css.getPropertyValue('--committed').trim(),
+    rem: css.getPropertyValue('--remain').trim(),
+    warn: css.getPropertyValue('--warn').trim(),
+    accent: css.getPropertyValue('--accent').trim(),
+    text: css.getPropertyValue('--text').trim(),
+    muted: css.getPropertyValue('--text-muted').trim(),
+    grid: '#e6eaf0'
+  };
+
+  // KPI
+  document.getElementById('kpis').innerHTML = [
+    { label: 'งบประมาณหลังโอนย้าย', v: mb(T.alloc), note: 'ตั้งต้น ' + mb(T.base) + ' + โอนย้าย ' + mb(T.trf) + ' ล้านบาท', c: 'var(--text-muted)' },
+    { label: 'ใช้จริง', v: mb(T.used), pct: p1(T.used, T.alloc), c: COL.used },
+    { label: 'ผูกพัน (ใบสั่งซื้อ)', v: mb(T.po), pct: p1(T.po, T.alloc), c: COL.po },
+    { label: 'คงเหลือ', v: mb(T.rem), pct: p1(T.rem, T.alloc), c: '#9aa5b5' }
+  ].map(function (k) {
+    return '<div class="kpi" style="--c:' + k.c + '"><div class="label">' + k.label + '</div>' +
+      '<div class="value">' + k.v + ' <small>ล้านบาท</small></div>' +
+      '<div class="note">' + (k.pct ? '<span class="pct">' + k.pct + '%</span> ของงบหลังโอนย้าย' : k.note) + '</div></div>';
+  }).join('');
+
+  // แถบสัดส่วนรวม
+  var su = p(T.used, T.alloc), sp = p(T.po, T.alloc), sr = p(T.rem, T.alloc);
+  document.getElementById('stackbar').innerHTML =
+    '<div class="bar" role="img" aria-label="ใช้จริง ' + su.toFixed(1) + ' เปอร์เซ็นต์ ผูกพัน ' + sp.toFixed(1) + ' คงเหลือ ' + sr.toFixed(1) + '">' +
+    '<div style="width:' + su + '%;background:' + COL.used + '">ใช้จริง ' + su.toFixed(1) + '%</div>' +
+    '<div style="width:' + sp + '%;background:' + COL.po + ';color:#14284d">' + sp.toFixed(1) + '%</div>' +
+    '<div style="width:' + sr + '%;background:' + COL.rem + ';color:' + COL.text + '">คงเหลือ ' + sr.toFixed(1) + '%</div></div>' +
+    '<div class="legend"><span><i class="sw" style="background:' + COL.used + '"></i>ใช้จริง ' + baht(T.used) + ' บาท</span>' +
+    '<span><i class="sw" style="background:' + COL.po + '"></i>ผูกพัน ' + baht(T.po) + ' บาท</span>' +
+    '<span><i class="sw" style="background:' + COL.rem + '"></i>คงเหลือ ' + baht(T.rem) + ' บาท</span></div>';
+
+  // บทสรุป
+  var inv = GROUPS[2], nurse = TOP_REM[0];
+  var carryTotal = CARRY.reduce(function (a, r) { return a + r.amt; }, 0);
+  var topSep = CATS.slice().sort(function (a, b) { return b.sep - a.sep; })[0];
+  var topTrf = CATS.slice().sort(function (a, b) { return b.trf - a.trf; })[0];
+  var topRemCat = CATS.slice().sort(function (a, b) { return b.rem - a.rem; })[0];
+  document.getElementById('rem-total').textContent = mb(T.rem);
+  document.getElementById('carry-total').textContent = baht(carryTotal);
+  document.getElementById('rem-desc').innerHTML = 'หน่วย: ล้านบาท · <b style="color:var(--warn)">' + mb(nurse.rem) + ' ล้านบาท</b> ในหมวด' + topRemCat.name + ' คือ' + nurse.item;
+  document.getElementById('summary').innerHTML = [
+    'สิ้นปีงบประมาณ 2569 ใช้จ่ายจริง <strong>' + mb(T.used) + ' ล้านบาท (' + p1(T.used, T.alloc) + '%)</strong> และมีใบสั่งซื้อผูกพันอีก ' + mb(T.po) + ' ล้านบาท รวม <strong>' + p1(T.used + T.po, T.alloc) + '%</strong> ของงบประมาณ คงเหลือ ' + mb(T.rem) + ' ล้านบาท (' + p1(T.rem, T.alloc) + '%)',
+    'งบประมาณระหว่างปีเพิ่มจาก ' + mb(T.base) + ' เป็น <strong>' + mb(T.alloc) + ' ล้านบาท</strong> จากการโอนย้าย ' + mb(T.trf) + ' ล้านบาท ส่วนใหญ่เป็น' + topTrf.name + ' (+' + mb(topTrf.trf) + ' ล้านบาท)',
+    '<strong>เงินคงเหลือ ' + p1(nurse.rem, T.rem) + '% (' + mb(nurse.rem) + ' ล้านบาท) มาจากรายการเดียว</strong> คือ ' + nurse.item,
+    'งบลงทุนใช้จริง ' + p1(inv.used, inv.alloc) + '% แต่รวมใบสั่งซื้อแล้ว <strong>' + p1(inv.used + inv.po, inv.alloc) + '%</strong> — มีรายการกันเงินไว้เบิกเหลื่อมปี ' + CARRY.length + ' รายการ ' + mb(carryTotal) + ' ล้านบาท',
+    'เดือนกันยายนใช้จ่าย ' + mb(T.sep) + ' ล้านบาท มากที่สุดคือ' + topSep.name + ' (' + mb(topSep.sep) + ' ล้านบาท, ' + p1(topSep.sep, T.sep) + '%)'
+  ].map(function (t) { return '<li>' + t + '</li>'; }).join('');
+
+  // ตารางหมวด
+  function stack(c) {
+    var a = c.alloc || 1;
+    return '<div class="mini" aria-hidden="true"><i style="width:' + p(c.used, a) + '%;background:' + COL.used + '"></i><i style="width:' + p(c.po, a) + '%;background:' + COL.po + '"></i></div>';
+  }
+  function row(c, isFoot) {
+    var pu = p(c.used, c.alloc);
+    var trfCls = c.trf > 0 ? 'pos' : (c.trf < 0 ? 'neg' : '');
+    return '<tr><td>' + c.name + '</td><td>' + baht(c.base) + '</td><td class="' + trfCls + '">' + (c.trf > 0 ? '+' : '') + baht(c.trf) + '</td>' +
+      '<td>' + baht(c.alloc) + '</td><td>' + baht(c.po) + '</td><td>' + baht(c.used) + '</td>' +
+      '<td' + (!isFoot && c.rem > 1e6 ? ' class="low"' : '') + '>' + baht(c.rem) + '</td>' +
+      '<td><div class="cell-bar">' + stack(c) + '<span class="pct-val' + (!isFoot && pu < 40 ? ' low' : '') + '">' + pu.toFixed(1) + '%</span></div></td></tr>';
+  }
+  document.getElementById('cat-rows').innerHTML = CATS.map(function (c) { return row(c); }).join('');
+  document.getElementById('cat-foot').innerHTML = row({ name: 'ยอดรวมทั้งสิ้น', base: T.base, trf: T.trf, alloc: T.alloc, po: T.po, used: T.used, rem: T.rem }, true);
+
+  document.getElementById('sep-total').textContent = mb(T.sep);
+  document.getElementById('top-rem').innerHTML = TOP_REM.map(function (r) { return '<li><span class="amt">' + baht(r.rem) + '</span>' + r.item + '</li>'; }).join('');
+  document.getElementById('carry').innerHTML = CARRY.map(function (r) { return '<li><span class="amt">' + baht(r.amt) + '</span>' + r.item + '</li>'; }).join('');
+
+  // ======== กราฟ ========
+  var charts = [];
+  function base() {
+    var fs = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    return { fs: Math.round(fs * 0.85), fsBig: Math.round(fs * 0.95), font: 'Sarabun, "Leelawadee UI", Tahoma, sans-serif' };
+  }
+
+  function groupsOption() {
+    var b = base();
+    var g = GROUPS.slice().reverse(); // ให้งบบุคลากรอยู่บน
+    function seg(key, color, labelColor) {
+      return {
+        name: key, type: 'bar', stack: 'all', barWidth: '58%',
+        data: g.map(function (x) { return +p(x[key], x.alloc).toFixed(1); }),
+        itemStyle: { color: color },
+        label: { show: true, color: labelColor, fontSize: b.fs, fontWeight: 700,
+                 formatter: function (o) { return o.value >= 9 ? o.value.toFixed(1) + '%' : ''; } }
+      };
+    }
+    return {
+      textStyle: { fontFamily: b.font, fontSize: b.fs, color: COL.muted },
+      animationDuration: 600,
+      grid: { left: 8, right: 16, top: 8, bottom: 8, containLabel: true },
+      tooltip: {
+        trigger: 'axis', axisPointer: { type: 'shadow' }, textStyle: { fontFamily: b.font, fontSize: b.fs },
+        formatter: function (ps) {
+          var x = g[ps[0].dataIndex];
+          return '<b>' + x.name + '</b> (งบ ' + baht(x.alloc) + ' บาท)<br>ใช้จริง ' + baht(x.used) + ' (' + p1(x.used, x.alloc) + '%)<br>ผูกพัน ' + baht(x.po) + ' (' + p1(x.po, x.alloc) + '%)<br>คงเหลือ ' + baht(x.rem) + ' (' + p1(x.rem, x.alloc) + '%)';
+        }
+      },
+      xAxis: { type: 'value', max: 100, interval: 25, axisLabel: { fontSize: b.fs, formatter: '{value}%' }, splitLine: { lineStyle: { color: COL.grid } } },
+      yAxis: { type: 'category', data: g.map(function (x) { return x.name + '\n' + mb(x.alloc) + ' ลบ.'; }), axisTick: { show: false }, axisLine: { show: false },
+               axisLabel: { fontSize: b.fsBig, color: COL.text, lineHeight: b.fsBig * 1.3 } },
+      series: [seg('used', COL.used, '#fff'), seg('po', COL.po, '#14284d'), seg('rem', COL.rem, COL.text)]
+    };
+  }
+
+  function remainingOption() {
+    var b = base();
+    var list = CATS.filter(function (c) { return c.rem > 0; }).sort(function (a, c) { return c.rem - a.rem; });
+    var top = list.slice(0, 7), rest = list.slice(7).reduce(function (a, c) { return a + c.rem; }, 0);
+    if (rest > 0) top.push({ name: 'หมวดอื่น ๆ (' + (list.length - 7) + ' หมวด)', rem: rest });
+    top.reverse();
+    return {
+      textStyle: { fontFamily: b.font, fontSize: b.fs, color: COL.muted },
+      animationDuration: 600,
+      grid: { left: 8, right: 56, top: 8, bottom: 8, containLabel: true },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, textStyle: { fontFamily: b.font, fontSize: b.fs },
+                 formatter: function (ps) { var x = top[ps[0].dataIndex]; return '<b>' + x.name + '</b><br>คงเหลือ ' + baht(x.rem) + ' บาท (' + p1(x.rem, T.rem) + '% ของเงินคงเหลือ)'; } },
+      xAxis: { type: 'value', axisLabel: { fontSize: b.fs, formatter: function (v) { return (v / 1e6).toFixed(1); } }, splitLine: { lineStyle: { color: COL.grid } } },
+      yAxis: { type: 'category', data: top.map(function (x) { return x.name; }), axisTick: { show: false }, axisLine: { show: false },
+               axisLabel: { fontSize: b.fs, color: COL.text, width: 190, overflow: 'break' } },
+      series: [{
+        type: 'bar', barWidth: '60%',
+        data: top.map(function (x) { return { value: x.rem, itemStyle: { color: x.rem > 1e6 ? COL.warn : '#7f93b8', borderRadius: [0, 5, 5, 0] } }; }),
+        label: { show: true, position: 'right', fontSize: b.fs, fontWeight: 700, color: COL.text, formatter: function (o) { return mb(o.value); } }
+      }]
+    };
+  }
+
+  function sepOption() {
+    var b = base();
+    var list = CATS.filter(function (c) { return c.sep > 0; }).sort(function (a, c) { return a.sep - c.sep; });
+    return {
+      textStyle: { fontFamily: b.font, fontSize: b.fs, color: COL.muted },
+      animationDuration: 600,
+      grid: { left: 8, right: 56, top: 8, bottom: 8, containLabel: true },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, textStyle: { fontFamily: b.font, fontSize: b.fs },
+                 formatter: function (ps) { var x = list[ps[0].dataIndex]; return '<b>' + x.name + '</b><br>เดือน ก.ย. ' + baht(x.sep) + ' บาท (' + p1(x.sep, T.sep) + '%)'; } },
+      xAxis: { type: 'value', axisLabel: { fontSize: b.fs, formatter: function (v) { return (v / 1e6).toFixed(1); } }, splitLine: { lineStyle: { color: COL.grid } } },
+      yAxis: { type: 'category', data: list.map(function (x) { return x.name; }), axisTick: { show: false }, axisLine: { show: false },
+               axisLabel: { fontSize: b.fs, color: COL.text, width: 190, overflow: 'break' } },
+      series: [{
+        type: 'bar', barWidth: '62%',
+        data: list.map(function (x, i) { return { value: x.sep, itemStyle: { color: i === list.length - 1 ? COL.used : '#8fa7d1', borderRadius: [0, 5, 5, 0] } }; }),
+        label: { show: true, position: 'right', fontSize: b.fs, fontWeight: 700, color: COL.text,
+                 formatter: function (o) { return o.value >= 1e5 ? mb(o.value) : (o.value / 1e6).toFixed(3); } }
+      }]
+    };
+  }
+
+  var defs = [['c-groups', groupsOption], ['c-remaining', remainingOption], ['c-sep', sepOption]];
+  function renderAll() {
+    var pending = defs.length;
+    defs.forEach(function (d, i) {
+      if (!charts[i]) charts[i] = echarts.init(document.getElementById(d[0]));
+      charts[i].setOption(d[1](), true);
+      charts[i].off('finished');
+      charts[i].on('finished', function () { if (--pending === 0) window.__READY__ = true; });
+    });
+  }
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(renderAll);
+  window.addEventListener('resize', function () { charts.forEach(function (c) { c && c.resize(); }); });
+
+  // ======== ปุ่มขนาดตัวอักษร / ส่งออก ========
+  var root = document.documentElement, sizeBtns = document.querySelectorAll('.font-size button');
+  function applySize(s) {
+    if (s === 'md') root.removeAttribute('data-size'); else root.setAttribute('data-size', s);
+    sizeBtns.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.size === s)); });
+  }
+  var saved = null; try { saved = localStorage.getItem('msc-font-size'); } catch (e) {}
+  if (saved) applySize(saved);
+  sizeBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      applySize(b.dataset.size);
+      try { localStorage.setItem('msc-font-size', b.dataset.size); } catch (e) {}
+      if (charts.length) { renderAll(); charts.forEach(function (c) { c.resize(); }); }
+    });
+  });
+  var toast = document.getElementById('toast'), tId;
+  function say(m) { toast.textContent = m; toast.classList.add('show'); clearTimeout(tId); tId = setTimeout(function () { toast.classList.remove('show'); }, 3200); }
+  window.addEventListener('beforeprint', function () { charts.forEach(function (c) { c.resize(); }); });
+  window.addEventListener('afterprint', function () { charts.forEach(function (c) { c.resize(); }); });
+  document.querySelectorAll('[data-export]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (b.dataset.export === 'pdf') { say('ต้นแบบ: ใช้หน้าต่างพิมพ์ของเบราว์เซอร์ → เลือก "บันทึกเป็น PDF"'); setTimeout(function () { window.print(); }, 400); }
+      else say('ต้นแบบ: ในระบบจริง ไฟล์ ' + b.dataset.export.toUpperCase() + ' สร้างจากเซิร์ฟเวอร์ (Headless Chrome)');
+    });
+  });
+})();
+</script>
+</body>
+</html>

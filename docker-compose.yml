@@ -1,0 +1,65 @@
+name: msc-report
+
+services:
+  app:
+    build: ./docker/php
+    volumes:
+      - ./src:/var/www/html
+    environment:
+      TZ: Asia/Bangkok
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./src:/var/www/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+
+  worker:
+    build: ./docker/php
+    command: php artisan queue:work --tries=3 --sleep=2
+    volumes:
+      - ./src:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["worker"]
+
+  db:
+    image: mariadb:11.4
+    environment:
+      MARIADB_DATABASE: msc_report
+      MARIADB_USER: msc_report
+      MARIADB_PASSWORD: msc_report_dev
+      MARIADB_ROOT_PASSWORD: root_dev
+      TZ: Asia/Bangkok
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    ports:
+      - "3306:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    environment:
+      PMA_HOST: db
+    ports:
+      - "8081:80"
+    depends_on:
+      - db
+    profiles: ["tools"]
+
+volumes:
+  dbdata:

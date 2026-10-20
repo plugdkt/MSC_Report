@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>อินโฟกราฟิก งบประมาณ ก.ย. 2569</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    /* สีตามแบบที่ผู้บริหารใช้อยู่ — ตั้งค่าได้ใน Template */
+    --navy: #1d3f6e;
+    --navy-2: #2b5a96;
+    --used: #2fa84f;      --used-dark: #1f7a37;  --used-soft: #e3f5e7;
+    --po: #e2393b;        --po-dark: #b3191c;    --po-soft: #fde6e6;
+    --rem: #1f7ae0;       --rem-dark: #1659a8;   --rem-soft: #e2eefc;
+    --total: #4a5263;     --total-soft: #eceef2;
+    --text: #1b2330;
+    --muted: #4a5568;
+    --ui-bg: #e9edf3;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--ui-bg); font-family: "Sarabun", "Leelawadee UI", Tahoma, sans-serif; color: var(--text); }
+
+  /* ---------- แถบเครื่องมือ (ไม่อยู่ในภาพ) ---------- */
+  .toolbar { position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 1px solid #d5dbe5; font-size: 18px; }
+  .toolbar-inner { max-width: 1600px; margin: 0 auto; padding: 10px 24px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .toolbar a { color: var(--navy); font-weight: 600; text-decoration: none; }
+  .toolbar .spacer { flex: 1; }
+  .flag { font-size: 15px; font-weight: 600; padding: 2px 12px; border-radius: 999px; background: #e5f4ec; color: #1e7a4c; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 6px 18px; font: inherit; font-weight: 600; border-radius: 999px; cursor: pointer; border: 2px solid var(--navy); background: #fff; color: var(--navy); }
+  .btn:hover { background: #e8eef8; }
+  .btn-primary { background: var(--navy); color: #fff; }
+  .btn-primary:hover { background: #163257; }
+  .btn input { display: none; }
+  @media (max-width: 600px) { .toolbar { position: static; } .toolbar-inner { padding: 8px 16px; } }
+
+  /* ---------- พื้นที่แสดงภาพ: canvas ขนาดคงที่ 1536×1024 ย่อให้พอดีจอ ---------- */
+  .stage { padding: 24px; display: flex; justify-content: center; }
+  @media (max-width: 600px) { .stage { padding: 16px; } }
+  .fit { position: relative; width: 100%; max-width: 1536px; }
+  .fit::before { content: ""; display: block; padding-top: 66.6667%; } /* 3:2 */
+  .scaler { position: absolute; top: 0; left: 0; width: 1536px; height: 1024px; transform-origin: 0 0; }
+
+  .canvas {
+    position: relative; width: 1536px; height: 1024px; overflow: hidden; border-radius: 6px;
+    background:
+      linear-gradient(120deg, rgba(255,255,255,.0) 0 30%, rgba(214,228,246,.55) 30% 34%, rgba(255,255,255,0) 34%),
+      linear-gradient(60deg, rgba(255,255,255,0) 0 62%, rgba(214,228,246,.45) 62% 66%, rgba(255,255,255,0) 66%),
+      radial-gradient(1100px 700px at 20% 30%, #ffffff 0%, #f1f6fc 55%, #dfeaf7 100%);
+    box-shadow: 0 6px 30px rgba(20,30,50,.15);
+  }
+
+  /* รูปหัวรายงาน (อาคาร/โลโก้) */
+  .hero-img { position: absolute; top: 0; right: 0; width: 560px; height: 300px; display: none;
+    -webkit-mask-image: linear-gradient(to left, #000 55%, transparent 100%), linear-gradient(to top, transparent 0%, #000 35%);
+    -webkit-mask-composite: source-in; mask-image: linear-gradient(to left, #000 55%, transparent 100%); }
+  .hero-img img { width: 100%; height: 100%; object-fit: cover; opacity: .9; }
+  .hero-img.on { display: block; }
+  .hero-ph { position: absolute; top: 104px; right: 24px; width: 300px; height: 112px; border: 3px dashed #b9c8de; border-radius: 16px;
+    display: grid; place-items: center; text-align: center; color: #7f90aa; font-size: 20px; line-height: 1.4; background: rgba(255,255,255,.5); }
+  .hero-ph.off { display: none; }
+
+  .title { position: absolute; left: 86px; right: 86px; top: 18px; height: 76px; border-radius: 38px;
+    background: linear-gradient(180deg, var(--navy-2), var(--navy)); color: #fff; display: grid; place-items: center;
+    font-size: 44px; font-weight: 800; letter-spacing: .2px; box-shadow: 0 4px 14px rgba(29,63,110,.35); white-space: nowrap; }
+  .month { position: absolute; left: 50%; top: 104px; transform: translateX(-50%); padding: 4px 36px; border-radius: 30px;
+    background: linear-gradient(180deg, #fff, #e8f0fa); color: var(--navy); font-size: 34px; font-weight: 800; box-shadow: 0 2px 8px rgba(29,63,110,.18); white-space: nowrap; }
+  .unit { position: absolute; left: 0; right: 0; top: 166px; text-align: center; font-size: 30px; font-weight: 700; }
+
+  #pie { position: absolute; left: 30px; top: 205px; width: 700px; height: 560px; }
+
+  /* ตารางขวา */
+  .tbl { position: absolute; left: 742px; top: 228px; width: 774px; }
+  .tbl-head { display: grid; grid-template-columns: 368px 120px 1fr; height: 48px; border-radius: 12px 12px 6px 6px;
+    background: linear-gradient(180deg, var(--navy-2), var(--navy)); color: #fff; font-size: 24px; font-weight: 700; align-items: center; text-align: center; }
+  .tbl-head div + div { border-left: 1px solid rgba(255,255,255,.35); }
+  .tbl-row { display: grid; grid-template-columns: 368px 120px 1fr; height: 104px; margin-top: 14px; border-radius: 12px; align-items: center;
+    box-shadow: 0 2px 6px rgba(20,30,50,.08); }
+  .tbl-row > div + div { border-left: 1px solid rgba(20,30,50,.12); height: 70%; display: flex; align-items: center; }
+  .tbl-row .name { display: flex; align-items: center; gap: 18px; padding-left: 18px; }
+  .tbl-row .name b { display: block; font-size: 26px; line-height: 1.3; white-space: nowrap; }
+  .tbl-row .name small { display: block; line-height: 1.3; }
+  .tbl-row .name small { font-size: 18px; color: var(--muted); }
+  .tbl-row .pct { justify-content: center; font-size: 40px; font-weight: 800; }
+  .tbl-row .amt { justify-content: flex-end; padding-right: 26px; font-size: 36px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .ico { width: 80px; height: 80px; border-radius: 50%; flex: none; display: grid; place-items: center; color: #fff;
+    box-shadow: inset 0 -6px 10px rgba(0,0,0,.18), 0 3px 8px rgba(0,0,0,.18); }
+  .ico svg { width: 44px; height: 44px; }
+
+  .r-used  { background: var(--used-soft); }  .r-used .pct  { color: var(--used-dark); }  .r-used .ico  { background: radial-gradient(circle at 35% 30%, #5fd17b, var(--used-dark)); }
+  .r-po    { background: var(--po-soft); }    .r-po .pct    { color: var(--po-dark); }    .r-po .ico    { background: radial-gradient(circle at 35% 30%, #ff6b6d, var(--po-dark)); }
+  .r-rem   { background: var(--rem-soft); }   .r-rem .pct   { color: var(--rem-dark); }   .r-rem .ico   { background: radial-gradient(circle at 35% 30%, #5aa6ff, var(--rem-dark)); }
+  .r-total { background: var(--total-soft); } .r-total .pct { color: var(--text); font-size: 34px; } .r-total .ico { background: radial-gradient(circle at 35% 30%, #7a8296, #2c3240); }
+
+  /* แถบล่าง */
+  .bottom { position: absolute; left: 30px; right: 30px; top: 780px; height: 198px; background: #fff; border-radius: 26px;
+    box-shadow: 0 4px 18px rgba(20,30,50,.12); display: grid; grid-template-columns: repeat(3, 1fr); align-items: center; }
+  .bcard { display: flex; align-items: center; gap: 20px; padding: 0 22px; }
+  .bcard + .bcard { border-left: 2px solid #dfe4ec; }
+  .bcard .ico { width: 116px; height: 116px; border: 6px solid #fff; box-shadow: 0 0 0 3px currentColor, inset 0 -8px 12px rgba(0,0,0,.18); }
+  .bcard .ico svg { width: 64px; height: 64px; }
+  .bcard .lbl { font-size: 28px; font-weight: 700; }
+  .bcard .val { font-size: 37px; font-weight: 800; line-height: 1.25; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .bcard .val small { font-size: 26px; font-weight: 600; margin-left: 6px; }
+  .bcard .p { font-size: 24px; color: var(--muted); }
+  .bcard .p b { font-size: 36px; margin-left: 6px; }
+  .b-used { color: var(--used-dark); } .b-used .ico { background: radial-gradient(circle at 35% 30%, #5fd17b, var(--used-dark)); }
+  .b-po   { color: var(--po-dark); }   .b-po .ico   { background: radial-gradient(circle at 35% 30%, #ff6b6d, var(--po-dark)); }
+  .b-rem  { color: var(--rem-dark); }  .b-rem .ico  { background: radial-gradient(circle at 35% 30%, #5aa6ff, var(--rem-dark)); }
+  .bcard .val.dark { color: var(--text); }
+  .b-po .val { color: var(--po-dark); } .b-rem .val { color: var(--rem-dark); }
+
+  .src { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; font-size: 17px; color: #6b778c; }
+
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: #fff; padding: 12px 22px; border-radius: 12px; font-size: 18px; opacity: 0; pointer-events: none; transition: opacity .2s; max-width: calc(100% - 32px); }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="toolbar-inner">
+    <a href="report-budget-sep69.html">‹ รายงานฉบับละเอียด</a>
+    <span class="flag">แบบอินโฟกราฟิก 1 หน้า · ข้อมูลตัวอย่าง (สมมติ)</span>
+    <span class="spacer"></span>
+    <label class="btn">เปลี่ยนรูปหัวรายงาน<input type="file" id="pick-img" accept="image/*"></label>
+    <button type="button" class="btn" data-export="png">ดาวน์โหลด PNG</button>
+    <button type="button" class="btn btn-primary" data-export="jpeg">ดาวน์โหลด JPEG</button>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="fit" id="fit">
+    <div class="scaler" id="scaler">
+      <div class="canvas" id="canvas">
+        <div class="hero-img" id="hero-img"><img alt="" id="hero-src"></div>
+        <div class="hero-ph" id="hero-ph">พื้นที่รูปอาคาร / โลโก้<br>(กด "เปลี่ยนรูปหัวรายงาน")</div>
+
+        <div class="title">แบบรายงานผลการใช้จ่ายงบประมาณ ประจำปีงบประมาณ พ.ศ. 2569</div>
+        <div class="month">เดือน กันยายน 2569</div>
+        <div class="unit">หน่วยงาน คณะวิทยาศาสตร์การแพทย์</div>
+
+        <div id="pie"></div>
+
+        <div class="tbl">
+          <div class="tbl-head"><div>รายการ</div><div>ร้อยละ</div><div>จำนวนเงิน (บาท)</div></div>
+          <div id="tbl-rows"></div>
+        </div>
+
+        <div class="bottom" id="bottom"></div>
+
+        <div class="src">ข้อมูลตัวอย่าง (สมมติ) · สร้างด้วย MSC Report</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  // ===== ผลรวมจากไฟล์ (ในระบบจริงมาจาก AggregationEngine) =====
+  var ITEMS = [
+    { key: 'used', name: 'งบประมาณใช้จริง',  short: 'งบประมาณ\nใช้จริง',  amt: 9722608.12, icon: 'coins' },
+    { key: 'po',   name: 'มูลค่าใบสั่งซื้อ',    short: 'มูลค่า\nใบสั่งซื้อ',    amt: 2466562.76,  icon: 'cart' },
+    { key: 'rem',  name: 'งบประมาณคงเหลือ',  short: 'งบประมาณ\nคงเหลือ',  amt: 2925829.12,  icon: 'doc' }
+  ];
+  var TOTAL = ITEMS.reduce(function (a, i) { return a + i.amt; }, 0); // = งบหลังโอนย้าย
+
+  // ร้อยละจำนวนเต็มที่รวมกันได้ 100 พอดี (Largest remainder)
+  (function roundTo100() {
+    var raw = ITEMS.map(function (i) { return i.amt / TOTAL * 100; });
+    var fl = raw.map(Math.floor), left = 100 - fl.reduce(function (a, b) { return a + b; }, 0);
+    raw.map(function (v, i) { return { i: i, r: v - fl[i] }; }).sort(function (a, b) { return b.r - a.r; })
+       .slice(0, left).forEach(function (o) { fl[o.i]++; });
+    ITEMS.forEach(function (it, i) { it.pct = fl[i]; it.exact = raw[i]; });
+  })();
+
+  function baht(n) { return n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+  var ICONS = {
+    coins: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="9" cy="6" rx="6" ry="2.5" fill="#fff" stroke="none"/><path d="M3 6v4c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V6" stroke="#fff"/><path d="M3 10v4c0 1.4 2.7 2.5 6 2.5" stroke="#fff"/><ellipse cx="15" cy="14" rx="6" ry="2.5" fill="#fff" stroke="none"/><path d="M9 14v4c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-4" stroke="#fff"/></svg>',
+    cart:  '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h3l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 7H6"/><circle cx="10" cy="20" r="1.6" fill="#fff"/><circle cx="17" cy="20" r="1.6" fill="#fff"/></svg>',
+    doc:   '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>',
+    calc:  '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><rect x="5" y="2.5" width="14" height="19" rx="2"/><rect x="8" y="5.5" width="8" height="3.5" rx=".6" fill="#fff"/><path d="M8.5 13h.01M12 13h.01M15.5 13h.01M8.5 16.5h.01M12 16.5h.01M15.5 16.5h.01" stroke-width="2.6"/></svg>'
+  };
+
+  // ตารางขวา
+  document.getElementById('tbl-rows').innerHTML = ITEMS.concat([{ key: 'total', name: 'งบประมาณทั้งหมด', amt: TOTAL, pct: 100, icon: 'calc' }])
+    .map(function (it) {
+      return '<div class="tbl-row r-' + it.key + '"><div class="name"><span class="ico">' + ICONS[it.icon] + '</span><span><b>' + it.name + '</b><small>คิดเป็นร้อยละ</small></span></div>' +
+        '<div class="pct">' + it.pct + '%</div><div class="amt">' + baht(it.amt) + '</div></div>';
+    }).join('');
+
+  // แถบล่าง
+  document.getElementById('bottom').innerHTML = ITEMS.map(function (it) {
+    return '<div class="bcard b-' + it.key + '"><span class="ico">' + ICONS[it.icon] + '</span><div>' +
+      '<div class="lbl">' + it.name + '</div>' +
+      '<div class="val' + (it.key === 'used' ? ' dark' : '') + '">' + baht(it.amt) + '<small>บาท</small></div>' +
+      '<div class="p">คิดเป็นร้อยละ<b>' + it.pct + '</b></div></div></div>';
+  }).join('');
+
+  // ===== กราฟวงกลม (2D — ใช้แสงเงาให้ดูมีมิติ แต่สัดส่วนยังถูกต้อง) =====
+  var css = getComputedStyle(document.documentElement);
+  function v(n) { return css.getPropertyValue(n).trim(); }
+  function grad(a, b) { return new echarts.graphic.RadialGradient(0.42, 0.38, 0.9, [{ offset: 0, color: a }, { offset: 1, color: b }]); }
+  var COLORS = {
+    used: grad('#6fe08a', v('--used')),
+    po:   grad('#ff7476', v('--po')),
+    rem:  grad('#62adff', v('--rem'))
+  };
+  var chart;
+  function drawPie() {
+    if (!chart) chart = echarts.init(document.getElementById('pie'), null, { renderer: 'canvas', devicePixelRatio: 2 });
+    chart.setOption({
+      animation: false, // ภาพนิ่งสำหรับส่งออก — วาดครบทันที
+      series: [
+        { // เงาใต้วงกลม
+          type: 'pie', radius: [0, '86%'], center: ['50%', '53%'], silent: true, label: { show: false },
+          data: [{ value: 1, itemStyle: { color: 'rgba(20,40,70,.18)' } }], z: 1
+        },
+        {
+          type: 'pie', radius: [0, '84%'], center: ['50%', '50%'], startAngle: 90, clockwise: false, z: 2, avoidLabelOverlap: false,
+          itemStyle: { borderColor: '#fff', borderWidth: 4, shadowBlur: 18, shadowColor: 'rgba(0,0,0,.18)', shadowOffsetY: 6 },
+          label: {
+            show: true, position: 'inside', color: '#fff', fontFamily: 'Sarabun', fontWeight: 800, lineHeight: 34,
+            textShadowColor: 'rgba(0,0,0,.35)', textShadowBlur: 6, textShadowOffsetY: 2,
+            formatter: function (p) { var sm = p.data.pct < 25 ? 's' : ''; return '{n' + sm + '|' + p.data.short + '}\n{p' + sm + '|' + p.data.pct + '%}'; },
+            rich: { n: { fontSize: 28, fontWeight: 700, lineHeight: 34, color: '#fff', align: 'center' },
+                    p: { fontSize: 60, fontWeight: 800, lineHeight: 70, color: '#fff', align: 'center' },
+                    ns: { fontSize: 24, fontWeight: 700, lineHeight: 30, color: '#fff', align: 'center' },
+                    ps: { fontSize: 44, fontWeight: 800, lineHeight: 52, color: '#fff', align: 'center' } }
+          },
+          labelLine: { show: false },
+          data: ITEMS.map(function (it) { return { value: it.amt, name: it.name, short: it.short, pct: it.pct, itemStyle: { color: COLORS[it.key] } }; })
+        }
+      ]
+    }, true);
+  }
+
+  // ===== ย่อ canvas ให้พอดีจอ =====
+  var fit = document.getElementById('fit'), scaler = document.getElementById('scaler');
+  function rescale() { scaler.style.transform = 'scale(' + (fit.clientWidth / 1536) + ')'; }
+  window.addEventListener('resize', rescale);
+  rescale();
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(function () {
+    drawPie();
+    chart.on('finished', function () { window.__READY__ = true; });
+  });
+
+  // ===== รูปหัวรายงาน =====
+  document.getElementById('pick-img').addEventListener('change', function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      document.getElementById('hero-src').src = r.result;
+      document.getElementById('hero-img').classList.add('on');
+      document.getElementById('hero-ph').classList.add('off');
+    };
+    r.readAsDataURL(f);
+  });
+
+  // ===== ดาวน์โหลดภาพ (ต้นแบบ: ทำฝั่งเบราว์เซอร์ / ระบบจริง: Headless Chrome ฝั่งเซิร์ฟเวอร์) =====
+  var toast = document.getElementById('toast'), tId;
+  function say(m) { toast.textContent = m; toast.classList.add('show'); clearTimeout(tId); tId = setTimeout(function () { toast.classList.remove('show'); }, 3200); }
+  document.querySelectorAll('[data-export]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var type = b.dataset.export;
+      var ph = document.getElementById('hero-ph'), phWasShown = !ph.classList.contains('off');
+      ph.style.visibility = 'hidden'; // ไม่ใส่กรอบตัวอย่างลงในภาพ
+      say('กำลังสร้างไฟล์ ' + type.toUpperCase() + ' …');
+      html2canvas(document.getElementById('canvas'), {
+        scale: 1, backgroundColor: '#ffffff', useCORS: true,
+        onclone: function (doc) {
+          doc.getElementById('scaler').style.transform = 'none';
+          // html2canvas วาด box-shadow แบบ spread ไม่ถูก → ปิดเงาเฉพาะตอนสร้างภาพ (ระบบจริงใช้ Headless Chrome ไม่มีปัญหานี้)
+          var st = doc.createElement('style');
+          st.textContent = '.bottom{box-shadow:none;border:2px solid #dfe5ee}.bcard .ico,.tbl-row .ico{box-shadow:none}.tbl-row{box-shadow:none}';
+          doc.head.appendChild(st);
+        }
+      }).then(function (cv) {
+        ph.style.visibility = phWasShown ? '' : 'hidden';
+        var a = document.createElement('a');
+        a.download = 'รายงานผลการใช้จ่ายงบประมาณ-ก.ย.2569.' + (type === 'jpeg' ? 'jpg' : 'png');
+        a.href = cv.toDataURL(type === 'jpeg' ? 'image/jpeg' : 'image/png', 0.92);
+        a.click();
+        say('ดาวน์โหลด ' + type.toUpperCase() + ' แล้ว (1536×1024)');
+      }).catch(function () { ph.style.visibility = ''; say('สร้างไฟล์ไม่สำเร็จ'); });
+    });
+  });
+})();
+</script>
+</body>
+</html>
