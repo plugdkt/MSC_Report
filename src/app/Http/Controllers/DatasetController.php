@@ -6,9 +6,11 @@ use App\Http\Requests\StoreDatasetRequest;
 use App\Jobs\ImportDatasetJob;
 use App\Models\Dataset;
 use App\Models\DatasetColumn;
+use App\Services\Ai\AiGateway;
 use App\Services\CodeLookup;
 use App\Services\Import\ImportException;
 use App\Services\Import\WorkbookInspector;
+use App\Services\Report\ReportPlanner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -114,6 +116,8 @@ class DatasetController extends Controller
             'dataset' => $dataset,
             'columns' => $dataset->columns()->with('codeSet')->get(),
             'codes' => app(CodeLookup::class),
+            'ai' => $ai = app(AiGateway::class)->availability(request()->user()),
+            'estimate' => $dataset->status === 'ready' && $ai['available'] ? app(ReportPlanner::class)->estimateClarifyTokens($dataset) : 0,
             'types' => DatasetColumn::TYPES,
             'canEdit' => Gate::allows('update', $dataset),
         ]);

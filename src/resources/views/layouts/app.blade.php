@@ -22,9 +22,16 @@
             @auth
                 <nav class="nav-links" aria-label="เมนูหลัก">
                     <a href="{{ route('home') }}" @class(['active' => request()->routeIs('home')])>รายงานของฉัน</a>
+                    <a href="{{ route('me.ai') }}" @class(['active' => request()->routeIs('me.ai')])>AI ของฉัน</a>
                     @if (auth()->user()->isAdmin())
-                        <a href="{{ route('admin.users.index') }}" @class(['active' => request()->routeIs('admin.users.*')])>จัดการผู้ใช้</a>
-                        <a href="{{ route('admin.codes.index') }}" @class(['active' => request()->routeIs('admin.codes.*')])>ตารางรหัส</a>
+                        <details class="nav-menu">
+                            <summary @class(['active' => request()->routeIs('admin.*')])>ผู้ดูแลระบบ ▾</summary>
+                            <div class="nav-menu-list">
+                                <a href="{{ route('admin.users.index') }}">จัดการผู้ใช้</a>
+                                <a href="{{ route('admin.codes.index') }}">ตารางรหัส</a>
+                                <a href="{{ route('admin.ai.edit') }}">ตั้งค่า AI</a>
+                            </div>
+                        </details>
                     @endif
                 </nav>
             @endauth
