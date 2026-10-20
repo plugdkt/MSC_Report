@@ -103,6 +103,14 @@
                                             รวม <b>{{ Thai::money($p['sum']) }}</b><br>ต่ำสุด {{ Thai::money($p['min']) }} · สูงสุด {{ Thai::money($p['max']) }}
                                         @elseif ($c->type() === 'date' && isset($p['min']))
                                             {{ Thai::date($p['min']) }} – {{ Thai::date($p['max']) }}
+                                        @elseif (isset($p['top']) && $c->code_set_id)
+                                            {{ $p['unique'] }} ค่า:
+                                            @foreach (array_slice(array_keys($p['top']), 0, 3) as $code)
+                                                @php($label = $codes->label($c->code_set_id, (string) $code) ?? $codes->group($c->code_set_id, (string) $code))
+                                                <br>{{ mb_strimwidth((string) $code, 0, 34, '…') }}@if ($label) <span class="code-label">→ {{ $label }}</span>@endif
+                                            @endforeach
+                                            {{ $p['unique'] > 3 ? ' …' : '' }}
+                                            <br><span class="badge" style="margin-top:.2rem">ชุดรหัส: {{ $c->codeSet?->name }}</span>
                                         @elseif (isset($p['top']))
                                             {{ $p['unique'] }} ค่า: {{ implode(', ', array_slice(array_keys($p['top']), 0, 4)) }}{{ $p['unique'] > 4 ? ' …' : '' }}
                                         @else
@@ -120,7 +128,10 @@
             </form>
 
             <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-top:1.4rem">
-                <a class="btn btn-outline" href="{{ route('datasets.sheets', $dataset) }}">‹ เลือกชีตใหม่</a>
+                <span style="display:flex;gap:.6rem;flex-wrap:wrap">
+                    <a class="btn btn-outline" href="{{ route('datasets.sheets', $dataset) }}">‹ เลือกชีตใหม่</a>
+                    <a class="btn btn-ghost" href="{{ route('datasets.excel-template', $dataset) }}">สร้างไฟล์ Excel สำหรับกรอกงวดถัดไป</a>
+                </span>
                 <button class="btn btn-primary btn-lg" type="button" disabled title="เปิดใช้ใน M2">ถัดไป: ให้ AI ช่วยสรุป ›</button>
             </div>
         @endif

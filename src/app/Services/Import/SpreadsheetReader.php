@@ -2,6 +2,7 @@
 
 namespace App\Services\Import;
 
+use App\Services\ExcelTemplate\TemplateWorkbookBuilder;
 use PhpOffice\PhpSpreadsheet\Cell\Cell as PhpCell;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -28,6 +29,19 @@ class SpreadsheetReader
     public function sheetNames(string $path): array
     {
         return $this->load($path)->getSheetNames();
+    }
+
+    /**
+     * รหัสแบบฟอร์มที่ฝังไว้ในไฟล์ Excel แนะนำ (FR-14.3)
+     */
+    public function templateKey(string $path): ?string
+    {
+        $book = $this->load($path);
+        $props = $book->getProperties();
+        $key = $props->isCustomPropertySet(TemplateWorkbookBuilder::PROPERTY) ? (string) $props->getCustomPropertyValue(TemplateWorkbookBuilder::PROPERTY) : null;
+        $book->disconnectWorksheets();
+
+        return $key ?: null;
     }
 
     /**

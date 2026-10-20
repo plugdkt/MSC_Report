@@ -16,10 +16,13 @@
                     · <span @class(['badge', 'badge-admin' => $user->isAdmin()])>{{ $user->roleLabel() }}</span>
                 </p>
             </div>
+            <span style="display:flex;gap:.6rem;flex-wrap:wrap">
+            <a class="btn btn-outline btn-lg" href="{{ route('excel-templates.index') }}">ไฟล์ Excel แนะนำ</a>
             <a class="btn btn-primary btn-lg" href="{{ route('datasets.create') }}">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
                 สร้างรายงานใหม่
             </a>
+            </span>
         </div>
 
         @if (session('status'))

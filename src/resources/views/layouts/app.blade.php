@@ -23,7 +23,8 @@
                 <nav class="nav-links" aria-label="เมนูหลัก">
                     <a href="{{ route('home') }}" @class(['active' => request()->routeIs('home')])>รายงานของฉัน</a>
                     @if (auth()->user()->isAdmin())
-                        <a href="{{ route('admin.users.index') }}" @class(['active' => request()->routeIs('admin.*')])>จัดการผู้ใช้</a>
+                        <a href="{{ route('admin.users.index') }}" @class(['active' => request()->routeIs('admin.users.*')])>จัดการผู้ใช้</a>
+                        <a href="{{ route('admin.codes.index') }}" @class(['active' => request()->routeIs('admin.codes.*')])>ตารางรหัส</a>
                     @endif
                 </nav>
             @endauth

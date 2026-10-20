@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['dataset_id', 'position', 'slug', 'source_name', 'display_name', 'inferred_type', 'user_type', 'is_pii', 'is_hidden', 'profile'])]
+#[Fillable(['dataset_id', 'position', 'slug', 'source_name', 'display_name', 'inferred_type', 'user_type', 'is_pii', 'is_hidden', 'code_set_id', 'profile'])]
 class DatasetColumn extends Model
 {
     public const TYPES = [
@@ -30,6 +30,11 @@ class DatasetColumn extends Model
             'is_hidden' => 'boolean',
             'profile' => 'array',
         ];
+    }
+
+    public function codeSet(): BelongsTo
+    {
+        return $this->belongsTo(CodeSet::class);
     }
 
     public function dataset(): BelongsTo

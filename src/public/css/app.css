@@ -70,7 +70,8 @@ main { flex: 1; padding: 2rem 0 3rem; }
 .avatar { width: 2.3rem; height: 2.3rem; border-radius: 50%; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; font-weight: 700; }
 .user-chip .who { line-height: 1.3; }
 .user-chip .who small { display: block; color: var(--text-muted); font-size: .85rem; }
-@media (max-width: 900px) { .nav-links { display: none; } .user-chip .who { display: none; } }
+@media (max-width: 900px) { .nav-links { display: none; } }
+@media (max-width: 1150px) { .user-chip .who { display: none; } }
 
 /* การ์ด / ข้อความแจ้ง */
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); }
@@ -177,3 +178,8 @@ details.box summary { cursor: pointer; font-weight: 600; }
 .spinner { width: 3rem; height: 3rem; border-radius: 50%; border: 5px solid var(--primary-soft); border-top-color: var(--primary); animation: spin 1s linear infinite; margin: 0 auto 1rem; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .ds-table td { vertical-align: middle; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+@media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+code { background: #f1f3f7; padding: .05rem .35rem; border-radius: 5px; font-size: .9em; }
+.code-label { color: var(--text-muted); }

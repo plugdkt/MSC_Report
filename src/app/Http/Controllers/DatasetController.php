@@ -6,6 +6,7 @@ use App\Http\Requests\StoreDatasetRequest;
 use App\Jobs\ImportDatasetJob;
 use App\Models\Dataset;
 use App\Models\DatasetColumn;
+use App\Services\CodeLookup;
 use App\Services\Import\ImportException;
 use App\Services\Import\WorkbookInspector;
 use Illuminate\Http\RedirectResponse;
@@ -38,6 +39,11 @@ class DatasetController extends Controller
             Storage::disk('local')->delete($path);
 
             return back()->withErrors(['file' => $e->getMessage()]);
+        }
+
+        $templateKey = $inspection['template']['key'] ?? '';
+        if (str_starts_with($templateKey, 'dataset:') && Dataset::find((int) substr($templateKey, 8))?->user_id !== $request->user()->id) {
+            unset($inspection['template']);
         }
 
         $dataset = $request->user()->datasets()->create([
@@ -106,7 +112,8 @@ class DatasetController extends Controller
 
         return view('datasets.show', [
             'dataset' => $dataset,
-            'columns' => $dataset->columns()->get(),
+            'columns' => $dataset->columns()->with('codeSet')->get(),
+            'codes' => app(CodeLookup::class),
             'types' => DatasetColumn::TYPES,
             'canEdit' => Gate::allows('update', $dataset),
         ]);

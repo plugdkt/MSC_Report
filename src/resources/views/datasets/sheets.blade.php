@@ -20,6 +20,10 @@
             </div>
         </div>
 
+        @if ($dataset->inspection['template'] ?? null)
+            <div class="alert alert-ok" role="status">📋 ไฟล์นี้สร้างจากแบบฟอร์ม "{{ $dataset->inspection['template']['name'] }}" — ระบบเลือกชีตและตั้งค่าคอลัมน์ให้อัตโนมัติ กด "นำเข้าชีตนี้" ได้เลย</div>
+        @endif
+
         @if ($error)
             <div class="alert alert-error" role="alert">{{ $error }}</div>
         @endif

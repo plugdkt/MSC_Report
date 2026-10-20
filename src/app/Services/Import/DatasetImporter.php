@@ -2,9 +2,13 @@
 
 namespace App\Services\Import;
 
+use App\Models\CodeSet;
 use App\Models\Dataset;
 use App\Models\DatasetColumn;
 use App\Models\DatasetRow;
+use App\Services\CodeLookup;
+use App\Services\ExcelTemplate\TemplateRegistry;
+use App\Services\ExcelTemplate\TemplateWorkbookBuilder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
@@ -20,6 +24,8 @@ class DatasetImporter
         private readonly SpreadsheetReader $reader,
         private readonly SheetAnalyzer $analyzer,
         private readonly ColumnProfiler $profiler,
+        private readonly CodeLookup $codes,
+        private readonly TemplateRegistry $templates,
     ) {}
 
     public function import(Dataset $dataset, string $sheet, int $headerStart, int $headerEnd): void
@@ -33,6 +39,7 @@ class DatasetImporter
         }
 
         $overrides = $dataset->columns()->get()->keyBy(fn (DatasetColumn $c) => $c->position.'|'.$c->source_name);
+        $fields = $this->templateFields($dataset, $sheet);
 
         $columns = [];
         $usedNames = [];
@@ -40,7 +47,8 @@ class DatasetImporter
         foreach ($analysis->columns as $col => $header) {
             $position++;
             $cells = array_map(fn (int $r) => $grid->cell($r, $col), $dataRows);
-            $type = $this->profiler->inferType($header, $cells);
+            $field = $fields[$header] ?? null;
+            $type = $field['type'] ?? $this->profiler->inferType($header, $cells);
             $old = $overrides->get($position.'|'.$header);
             $finalType = $old?->user_type ?? $type;
             $values = array_map(fn (Cell $c) => $this->profiler->convert($c, $finalType), $cells);
@@ -60,6 +68,9 @@ class DatasetImporter
                     'user_type' => $old?->user_type,
                     'is_pii' => $old?->is_pii ?? $this->profiler->looksLikePii($header, $values),
                     'is_hidden' => $old?->is_hidden ?? $isEmpty,
+                    'code_set_id' => in_array($finalType, ['code', 'category'], true)
+                        ? ($field['code_set_id'] ?? $this->codeSetFromOptions($field) ?? $this->codes->setForColumn($header)?->id)
+                        : null,
                     'profile' => $this->profiler->profile($finalType, $values),
                 ],
                 'values' => $values,
@@ -68,6 +79,9 @@ class DatasetImporter
 
         $excluded = $this->excludedRows($grid, $analysis);
         $quality = $this->qualityChecks($grid, $analysis, $columns, $dataRows);
+        if ($fields !== []) {
+            array_unshift($quality, $this->templateCheck($dataset, $fields, $analysis->columns));
+        }
 
         DB::transaction(function () use ($dataset, $sheet, $analysis, $columns, $dataRows, $excluded, $quality) {
             $dataset->columns()->delete();
@@ -113,6 +127,48 @@ class DatasetImporter
                 'error_message' => null,
             ]);
         });
+    }
+
+    /**
+     * ค่าตั้งของคอลัมน์จากแบบฟอร์ม Excel แนะนำ (จับคู่ด้วยชื่อหัวตาราง)
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private function templateFields(Dataset $dataset, string $sheet): array
+    {
+        $key = $dataset->inspection['template']['key'] ?? null;
+        if (! $key || $sheet !== TemplateWorkbookBuilder::DATA_SHEET) {
+            return [];
+        }
+        $template = $this->templates->find($key);
+
+        return $template ? collect($template['fields'])->keyBy('label')->all() : [];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $field
+     */
+    private function codeSetFromOptions(?array $field): ?int
+    {
+        $from = $field['options_from'] ?? '';
+
+        return str_starts_with($from, 'code_set:') ? CodeSet::where('key', substr($from, 9))->value('id') : null;
+    }
+
+    /**
+     * @param  array<string, array<string, mixed>>  $fields
+     * @param  array<int, string>  $headers
+     * @return array{level:string, message:string}
+     */
+    private function templateCheck(Dataset $dataset, array $fields, array $headers): array
+    {
+        $missing = array_keys(array_filter($fields, fn ($f, $label) => ($f['required'] ?? false) && ! in_array($label, $headers, true), ARRAY_FILTER_USE_BOTH));
+        $matched = count(array_intersect(array_keys($fields), $headers));
+        $name = $dataset->inspection['template']['name'];
+
+        return $missing === []
+            ? ['level' => 'ok', 'message' => "ไฟล์จากแบบฟอร์ม \"{$name}\" — ตั้งค่าคอลัมน์ให้อัตโนมัติ {$matched} คอลัมน์"]
+            : ['level' => 'warn', 'message' => "ไฟล์จากแบบฟอร์ม \"{$name}\" แต่ไม่พบคอลัมน์ที่จำเป็น: ".implode(', ', $missing)];
     }
 
     /**

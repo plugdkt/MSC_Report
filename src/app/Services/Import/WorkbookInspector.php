@@ -2,6 +2,8 @@
 
 namespace App\Services\Import;
 
+use App\Services\ExcelTemplate\TemplateRegistry;
+use App\Services\ExcelTemplate\TemplateWorkbookBuilder;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 /**
@@ -14,10 +16,11 @@ class WorkbookInspector
     public function __construct(
         private readonly SpreadsheetReader $reader,
         private readonly SheetAnalyzer $analyzer,
+        private readonly TemplateRegistry $templates,
     ) {}
 
     /**
-     * @return array{sheets: list<array<string, mixed>>, recommended: ?string}
+     * @return array{sheets: list<array<string, mixed>>, recommended: ?string, template?: array{key:string, name:string}}
      */
     public function inspect(string $path): array
     {
@@ -33,12 +36,20 @@ class WorkbookInspector
             throw new ImportException('ไม่พบข้อมูลในไฟล์');
         }
 
-        $best = collect($sheets)->filter(fn ($s) => $s['data_rows'] >= 3)->sortByDesc('score')->first();
+        $template = null;
+        $key = $this->reader->templateKey($path);
+        if ($key && ($def = $this->templates->find($key)) && collect($sheets)->contains('name', TemplateWorkbookBuilder::DATA_SHEET)) {
+            $template = ['key' => $key, 'name' => $def['name']];
+        }
+
+        $best = $template
+            ? collect($sheets)->firstWhere('name', TemplateWorkbookBuilder::DATA_SHEET)
+            : collect($sheets)->filter(fn ($s) => $s['data_rows'] >= 1)->sortByDesc('score')->first();
         foreach ($sheets as &$s) {
             $s['recommended'] = $best !== null && $s['name'] === $best['name'];
         }
 
-        return ['sheets' => $sheets, 'recommended' => $best['name'] ?? null];
+        return array_filter(['sheets' => $sheets, 'recommended' => $best['name'] ?? null, 'template' => $template], fn ($v) => $v !== null) + ['recommended' => null];
     }
 
     /**

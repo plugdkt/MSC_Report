@@ -7,7 +7,8 @@
     <div class="container" style="max-width:52rem">
         @include('datasets._steps', ['current' => 1])
         <h1 style="font-size:1.8rem">อัปโหลดไฟล์ Excel</h1>
-        <p class="muted">ใช้ไฟล์ที่คุณมีอยู่ได้เลย ระบบจะหาตารางข้อมูล ตัดแถวยอดรวม และแปลงวันที่ พ.ศ. ให้อัตโนมัติ</p>
+        <p class="muted">ใช้ไฟล์ที่คุณมีอยู่ได้เลย ระบบจะหาตารางข้อมูล ตัดแถวยอดรวม และแปลงวันที่ พ.ศ. ให้อัตโนมัติ
+            · ยังไม่มีไฟล์? <a href="{{ route('excel-templates.index') }}">ดาวน์โหลดไฟล์ Excel แนะนำ</a></p>
 
         <form class="card" method="POST" action="{{ route('datasets.store') }}" enctype="multipart/form-data" id="upload-form">
             @csrf
