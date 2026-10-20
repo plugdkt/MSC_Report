@@ -26,6 +26,22 @@ class ExportService
 
     public const INFOGRAPHIC_SIZE = [1536, 1024];
 
+    /**
+     * ขนาดภาพอินโฟกราฟิก: แบบสัดส่วนคงที่ 1536×1024, แบบเล่าเรื่องกว้างตามขนาดที่เลือกและสูงตามเนื้อหา (null)
+     *
+     * @param  array<string, mixed>  $g
+     * @return array{0:int, 1:?int}
+     */
+    public static function infographicSize(array $g): array
+    {
+        if (($g['mode'] ?? 'parts') !== 'story') {
+            return self::INFOGRAPHIC_SIZE;
+        }
+        $sizes = config('export.infographic_sizes');
+
+        return [$sizes[$g['size'] ?? 'a4p'][0] ?? 1240, null];
+    }
+
     public const DASHBOARD_WIDTH = 1440;
 
     public function __construct(private readonly ChromeRenderer $renderer) {}
@@ -105,7 +121,7 @@ class ExportService
         $quality = (int) config('export.jpeg_quality');
 
         if ($export->target === 'infographic') {
-            [$w, $h] = self::INFOGRAPHIC_SIZE;
+            [$w, $h] = self::infographicSize($version->spec['infographic'] ?? []);
 
             return $this->renderer->image($this->signedUrl('render.infographic', $version->id), $w, $h, $export->format, $scale, $quality);
         }

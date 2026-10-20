@@ -291,6 +291,42 @@ code { background: #f1f3f7; padding: .05rem .35rem; border-radius: 5px; font-siz
 .ig-p b { font-size: 32px; margin-left: 6px; }
 .ig-src { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; font-size: 17px; color: #6b778c; }
 
+/* อินโฟกราฟิกแบบเล่าเรื่อง (ขนาดตามที่เลือก ความสูงตามเนื้อหา) */
+.ig2-fit { position: relative; width: 100%; margin: 0 auto; overflow: hidden; }
+.ig2-scaler { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+.ig2 { display: flex; flex-direction: column; --c0: #1f3b6e; --c1: #b7822b; --c2: #4f7cc4; --c3: #1e7a4c; box-sizing: border-box; position: relative; padding: 48px 56px 40px; font-family: "Sarabun", Tahoma, sans-serif; color: #1b2330;
+  background: linear-gradient(180deg, #f7faff 0%, #e9f0fa 100%); }
+.ig2-head { position: relative; text-align: center; }
+.ig2-hero { margin: -48px -56px 24px; height: 260px; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent); mask-image: linear-gradient(to bottom, #000 60%, transparent); }
+.ig2-hero img { width: 100%; height: 100%; object-fit: cover; opacity: .9; }
+.ig2-title { display: inline-block; max-width: 100%; padding: 14px 44px; border-radius: 48px; background: var(--c0); color: #fff; font-size: 46px; font-weight: 800; line-height: 1.3; box-shadow: 0 4px 14px rgba(20,30,50,.25); }
+.ig2-sub { margin: 16px 0 0; font-size: 30px; font-weight: 700; color: var(--c0); }
+.ig2-grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 26px; margin-top: 30px; grid-auto-flow: dense; }
+.ig2-block { background: #fff; border-radius: 26px; box-shadow: 0 4px 18px rgba(20,30,50,.10); padding: 26px 30px; min-width: 0; }
+.ig2-block.span2, .ig2-grid > .ig2-block:last-child:nth-child(odd) { grid-column: span 2; }
+.ig2 .ig2-block > h3 { margin: 0 0 14px; font-size: 32px; font-weight: 800; color: var(--c0); }
+.ig2-kpis { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 20px; }
+.ig2-kpi { border-left: 10px solid var(--ci); padding: 4px 6px 4px 20px; min-width: 0; }
+.ig2-kpi .l { font-size: 26px; font-weight: 700; color: #3b475a; }
+.ig2-kpi .v { font-size: 60px; font-weight: 800; line-height: 1.12; font-variant-numeric: tabular-nums; color: var(--ci); white-space: nowrap; }
+.ig2-kpi .u { font-size: 26px; font-weight: 600; color: #4a5568; }
+.ig2-kpi .s { font-size: 20px; color: #6b778c; }
+.ig2-chart { height: 430px; }
+.ig2-bar { display: grid; grid-template-columns: 38% 1fr auto; gap: 14px; align-items: center; margin: 12px 0; font-size: 25px; }
+.ig2-bar .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.ig2-bar .tr { height: 30px; background: #e8eef6; border-radius: 15px; overflow: hidden; }
+.ig2-bar .fl { height: 100%; border-radius: 15px; background: var(--c0); }
+.ig2-bar .vl { font-weight: 800; font-variant-numeric: tabular-nums; }
+.ig2-list { list-style: none; margin: 0; padding: 0; }
+.ig2-list li { display: grid; grid-template-columns: 52px 1fr auto; gap: 14px; align-items: center; padding: 10px 0; border-bottom: 1px solid #e6eaf0; font-size: 26px; }
+.ig2-list li:last-child { border-bottom: 0; }
+.ig2-list .rk { width: 44px; height: 44px; border-radius: 50%; background: var(--c0); color: #fff; display: grid; place-items: center; font-size: 24px; font-weight: 800; }
+.ig2-list .vl { font-weight: 800; font-variant-numeric: tabular-nums; }
+.ig2-hl { margin: 0; padding-left: 1.6rem; font-size: 29px; line-height: 1.55; }
+.ig2-hl li { margin: 8px 0; }
+.ig2-text { margin: 0; font-size: 29px; line-height: 1.6; }
+.ig2-src { margin-top: 30px; padding-top: 6px; text-align: center; font-size: 19px; color: #6b778c; }
+
 /* เมนูส่งออก */
 .export-menu { position: relative; }
 .export-menu > summary { list-style: none; cursor: pointer; }

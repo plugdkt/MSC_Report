@@ -56,6 +56,10 @@ TXT;
 - bar/line ใส่หลายตัวเลขได้ด้วย "measures":[…] แทน "measure"; table ใช้ "measures"
 - "filters":[{"column":"cX","op":"=|!=|in|>|<|>=|<=","value":…}] (ไม่บังคับ), "sort":"desc|asc", "limit":10
 - gauge: measure ที่ได้ร้อยละ (ratio/percent_where) และ "target": ตัวเลขเป้าหมาย (ถ้าผู้ใช้ให้มา)
+- "infographic" (ไม่บังคับ แต่แนะนำ): ภาพสรุป 1 หน้าที่เล่าเรื่องของรายงาน เลือกบล็อก 3–6 ชิ้นที่อ้าง widget id
+  บล็อก: {"type":"kpis","refs":["w1","w2"]} เลขเด่น 2–4 (kpi/gauge) · {"type":"ring","ref":"wX","title":"…"} สัดส่วน (pie/gauge) · {"type":"bars","ref":"wX"} จัดอันดับ (bar/pie) · {"type":"trend","ref":"wX"} แนวโน้ม (line/bar) · {"type":"list","ref":"wX"} รายการ (table/bar/pie) · {"type":"highlights"} ประเด็นสำคัญจากบทสรุป · {"type":"text","text":"…"}
+  "size": a4p (แนวตั้ง เนื้อหามาก) | a4l (แนวนอน) | wide (16:9 เนื้อหาน้อย) | square | long ; "title","subtitle" (ไม่ต้องใส่ตัวเลข)
+  รูปแบบ: "infographic":{"size":"a4p","title":"…","subtitle":"…","blocks":[…]}
 TXT;
 
     /**

@@ -22,6 +22,17 @@ class SpecValidator
 
     public const OPS = ['=', '!=', 'in', '>', '<', '>=', '<='];
 
+    /** บล็อกของอินโฟกราฟิกแบบเล่าเรื่อง → ชนิด widget ที่อ้างได้ (null = ไม่อ้าง widget) */
+    public const INFOGRAPHIC_BLOCKS = [
+        'kpis' => ['label' => 'ตัวเลขเด่น', 'widgets' => ['kpi', 'gauge']],
+        'ring' => ['label' => 'วงกลมสัดส่วน', 'widgets' => ['pie', 'gauge']],
+        'bars' => ['label' => 'แท่งจัดอันดับ', 'widgets' => ['bar', 'pie']],
+        'trend' => ['label' => 'แนวโน้ม', 'widgets' => ['line', 'bar']],
+        'list' => ['label' => 'รายการจัดอันดับ', 'widgets' => ['table', 'bar', 'pie']],
+        'highlights' => ['label' => 'ประเด็นสำคัญ (บทสรุป)', 'widgets' => null],
+        'text' => ['label' => 'ข้อความ', 'widgets' => null],
+    ];
+
     public const THEMES = ['org' => 'องค์กร (กรมท่า-ทอง)', 'formal' => 'ทางการ (เทา-น้ำเงิน)', 'bright' => 'สดใส', 'green' => 'เขียว'];
 
     private const DEFAULT_SIZE = ['kpi' => [3, 2], 'gauge' => [4, 4], 'pie' => [6, 4], 'bar' => [6, 4], 'line' => [6, 4], 'table' => [12, 4]];
@@ -79,7 +90,7 @@ class SpecValidator
 
         $out['widgets'] = $this->layout($out['widgets'], $widgets);
         if (isset($spec['infographic']) && is_array($spec['infographic'])) {
-            $out['infographic'] = $this->infographic($spec['infographic']);
+            $out['infographic'] = $this->infographic($spec['infographic'], $out['widgets']);
         }
 
         return [$out, $this->errors];
@@ -214,8 +225,12 @@ class SpecValidator
      * @param  array<string, mixed>  $g
      * @return array<string, mixed>
      */
-    private function infographic(array $g): array
+    private function infographic(array $g, array $widgets = []): array
     {
+        if (($g['mode'] ?? (isset($g['blocks']) ? 'story' : 'parts')) === 'story') {
+            return $this->storyInfographic($g, $widgets);
+        }
+
         $parts = [];
         foreach (array_slice((array) ($g['parts'] ?? []), 0, 4) as $i => $p) {
             $cols = [];
@@ -240,12 +255,71 @@ class SpecValidator
         $text = fn ($k, $max = 200) => is_string($g[$k] ?? null) ? mb_substr(trim($g[$k]), 0, $max) : null;
 
         return [
+            'mode' => 'parts',
             'enabled' => (bool) ($g['enabled'] ?? $parts !== []) && count($parts) >= 2,
             'title' => $text('title'),
             'period' => $text('period', 80),
             'unit' => $text('unit', 150),
             'total_label' => $text('total_label', 60) ?: 'ทั้งหมด',
             'parts' => $parts,
+            'image' => is_string($g['image'] ?? null) && preg_match('/^[a-z0-9\/._-]+$/i', $g['image']) ? $g['image'] : null,
+        ];
+    }
+
+    /**
+     * อินโฟกราฟิกแบบเล่าเรื่อง: บล็อกที่อ้าง widget ด้วย id — ตัวเลขทั้งหมดมาจากผลคำนวณของ widget เสมอ
+     * บล็อกที่ไม่ถูกต้องถูกข้ามเงียบ ๆ (ถ้าไม่เหลือบล็อกเลย อินโฟกราฟิกจะไม่เปิดใช้ และระบบจัดให้เอง)
+     *
+     * @param  list<array<string, mixed>>  $widgets
+     * @return array<string, mixed>
+     */
+    private function storyInfographic(array $g, array $widgets): array
+    {
+        $byId = collect($widgets)->keyBy('id');
+        $blocks = [];
+        foreach (array_slice(array_values((array) ($g['blocks'] ?? [])), 0, 10) as $b) {
+            $type = is_array($b) ? ($b['type'] ?? null) : null;
+            if (! is_string($type) || ! isset(self::INFOGRAPHIC_BLOCKS[$type])) {
+                continue;
+            }
+            $allowed = self::INFOGRAPHIC_BLOCKS[$type]['widgets'];
+            $block = ['type' => $type];
+            if (is_string($b['title'] ?? null) && trim($b['title']) !== '') {
+                $block['title'] = mb_substr(trim($b['title']), 0, 80);
+            }
+
+            if ($type === 'kpis') {
+                $refs = array_values(array_filter(array_map('strval', (array) ($b['refs'] ?? [])), fn ($r) => $byId->has($r) && in_array($byId[$r]['type'], $allowed, true)));
+                if ($refs === []) {
+                    continue;
+                }
+                $block['refs'] = array_slice($refs, 0, 4);
+            } elseif ($allowed !== null) {
+                $ref = (string) ($b['ref'] ?? '');
+                if (! $byId->has($ref) || ! in_array($byId[$ref]['type'], $allowed, true)) {
+                    continue;
+                }
+                $block['ref'] = $ref;
+                $block['limit'] = max(3, min(12, (int) ($b['limit'] ?? 8)));
+            } elseif ($type === 'text') {
+                $text = is_string($b['text'] ?? null) ? mb_substr(trim($b['text']), 0, 600) : '';
+                if ($text === '') {
+                    continue;
+                }
+                $block['text'] = $text;
+            }
+            $blocks[] = $block;
+        }
+        $sizes = array_keys(config('export.infographic_sizes'));
+        $text = fn ($k, $max = 200) => is_string($g[$k] ?? null) && trim($g[$k]) !== '' ? mb_substr(trim($g[$k]), 0, $max) : null;
+
+        return [
+            'mode' => 'story',
+            'enabled' => (bool) ($g['enabled'] ?? true) && $blocks !== [],
+            'title' => $text('title'),
+            'subtitle' => $text('subtitle', 160),
+            'size' => in_array($g['size'] ?? null, $sizes, true) ? $g['size'] : 'a4p',
+            'blocks' => $blocks,
             'image' => is_string($g['image'] ?? null) && preg_match('/^[a-z0-9\/._-]+$/i', $g['image']) ? $g['image'] : null,
         ];
     }

@@ -6,7 +6,11 @@
 <script src="{{ asset('vendor/echarts.min.js') }}"></script>
 @endpush
 
-@php($g = $spec['infographic'] ?? null)
+@php
+    $g = $spec['infographic'] ?? null;
+    $story = ($g['mode'] ?? 'parts') === 'story';
+    $dims = $story ? ($sizes[$g['size'] ?? 'a4p'] ?? $sizes['a4p']) : [1536, 1024, 'แบบสัดส่วน'];
+@endphp
 
 @section('body')
 <main>
@@ -21,7 +25,7 @@
                     @csrf
                     <input type="hidden" name="target" value="infographic">
                     <label class="muted" style="display:flex;align-items:center;gap:.4rem">ความละเอียด
-                        <select name="scale"><option value="1">ปกติ (1536×1024)</option><option value="2" selected>ชัดมาก 2× (3072×2048)</option><option value="3">สูงสุด 3×</option></select>
+                        <select name="scale"><option value="1">ปกติ ({{ $dims[0] }} px กว้าง)</option><option value="2" selected>ชัดมาก 2× ({{ $dims[0] * 2 }} px)</option><option value="3">สูงสุด 3×</option></select>
                     </label>
                     <button class="btn btn-ghost" type="submit" name="format" value="png">ดาวน์โหลด PNG</button>
                     <button class="btn btn-primary" type="submit" name="format" value="jpeg">ดาวน์โหลด JPEG</button>
@@ -35,7 +39,16 @@
         @if (! $data)
             <div class="card empty">
                 <h2 style="font-size:1.3rem">ยังไม่ได้ตั้งค่าอินโฟกราฟิก</h2>
-                <p class="muted">เลือกตัวเลข 2–4 ส่วนที่รวมกันเป็นยอดทั้งหมด (เช่น ใช้จริง + ผูกพัน + คงเหลือ = งบทั้งหมด) ในแบบฟอร์มด้านล่าง</p>
+                <p class="muted">ให้ระบบจัดจากรายงานให้ หรือเลือกบล็อกเองด้านล่าง</p>
+                @if ($canEdit)
+                    <form method="POST" action="{{ route('dashboards.infographic.update', $dashboard) }}">@csrf @method('PUT')<input type="hidden" name="mode" value="auto"><button class="btn btn-primary" type="submit">ให้ระบบจัดให้</button></form>
+                @endif
+            </div>
+        @elseif ($story)
+            <div class="ig2-fit" id="fit">
+                <div class="ig2-scaler" id="scaler">
+                    @include('dashboards._infographic_story')
+                </div>
             </div>
         @else
             <div class="ig-fit" id="fit">
@@ -46,17 +59,48 @@
         @endif
 
         @if ($canEdit)
-            <details class="box" style="margin-top:1.2rem" @if (! $data) open @endif>
-                <summary>ตั้งค่าอินโฟกราฟิก</summary>
+            @if ($story)
+                <details class="box" style="margin-top:1.2rem">
+                    <summary>ปรับอินโฟกราฟิก (ขนาด · บล็อก)</summary>
+                    <form method="POST" action="{{ route('dashboards.infographic.update', $dashboard) }}" style="display:grid;gap:.8rem;margin-top:.8rem">
+                        @csrf @method('PUT')
+                        <input type="hidden" name="mode" value="story">
+                        <div class="grid-2">
+                            <label class="muted" style="display:grid;gap:.2rem;font-weight:600">ชื่อบนแถบหัว<input type="text" name="title" value="{{ $g['title'] ?? '' }}" maxlength="200"></label>
+                            <label class="muted" style="display:grid;gap:.2rem;font-weight:600">บรรทัดรอง (ช่วงเวลา/หน่วยงาน)<input type="text" name="subtitle" value="{{ $g['subtitle'] ?? '' }}" maxlength="160"></label>
+                            <label class="muted" style="display:grid;gap:.2rem;font-weight:600">ขนาดภาพ
+                                <select name="size">@foreach ($sizes as $k => $sz)<option value="{{ $k }}" @selected(($g['size'] ?? 'a4p') === $k)>{{ $sz[2] }} ({{ $sz[0] }} px กว้าง{{ $sz[1] ? ' × '.$sz[1] : ' · สูงตามเนื้อหา' }})</option>@endforeach</select>
+                            </label>
+                        </div>
+                        <p class="muted" style="margin:0">บล็อก (เรียงจากบนลงล่าง ปล่อยว่าง = ไม่ใช้) · ความสูงของภาพขยายตามเนื้อหาเสมอ</p>
+                        @for ($i = 0; $i < 8; $i++)
+                            @php($b = $g['blocks'][$i] ?? null)
+                            <div class="form-row">
+                                <label>ประเภทที่ {{ $i + 1 }}<select name="blocks[{{ $i }}][type]"><option value="">— ไม่ใช้ —</option>@foreach ($blockTypes as $k => $bt)<option value="{{ $k }}" @selected(($b['type'] ?? null) === $k)>{{ $bt['label'] }}</option>@endforeach</select></label>
+                                <label>ตัวเลข/กราฟจากรายงาน<select name="blocks[{{ $i }}][ref]"><option value="">— (ตัวเลขเด่น/ประเด็นสำคัญ/ข้อความ ไม่ต้องเลือก) —</option>@foreach ($widgets as $w)<option value="{{ $w['id'] }}" @selected(($b['ref'] ?? null) === $w['id'])>{{ $w['title'] }} ({{ $w['type'] }})</option>@endforeach</select></label>
+                                <label>หัวข้อ<input type="text" name="blocks[{{ $i }}][title]" value="{{ $b['title'] ?? '' }}" maxlength="80"></label>
+                                <label>ข้อความ (เฉพาะประเภทข้อความ)<input type="text" name="blocks[{{ $i }}][text]" value="{{ $b['text'] ?? '' }}" maxlength="600"></label>
+                            </div>
+                        @endfor
+                        <div><button class="btn btn-primary" type="submit">บันทึกอินโฟกราฟิก</button></div>
+                    </form>
+                    <form method="POST" action="{{ route('dashboards.infographic.update', $dashboard) }}" style="margin-top:.6rem">@csrf @method('PUT')<input type="hidden" name="mode" value="auto"><button class="btn btn-ghost" type="submit">จัดจากรายงานใหม่อัตโนมัติ</button></form>
+                    @include('dashboards._infographic_image_form')
+                </details>
+            @endif
+
+            <details class="box" style="margin-top:1.2rem" @if (! $story && ! $data) open @endif>
+                <summary>{{ $story ? 'หรือเปลี่ยนเป็นแบบสัดส่วนของยอดรวม (แบบที่ผู้บริหารใช้)' : 'ตั้งค่าอินโฟกราฟิกแบบสัดส่วนของยอดรวม' }}</summary>
                 <form method="POST" action="{{ route('dashboards.infographic.update', $dashboard) }}" style="display:grid;gap:.8rem;margin-top:.8rem">
                     @csrf @method('PUT')
+                    <input type="hidden" name="mode" value="parts">
                     <div class="grid-2">
                         <label class="muted" style="display:grid;gap:.2rem;font-weight:600">ชื่อบนแถบหัว<input type="text" name="title" value="{{ $g['title'] ?? '' }}" maxlength="200"></label>
                         <label class="muted" style="display:grid;gap:.2rem;font-weight:600">ป้ายช่วงเวลา<input type="text" name="period" value="{{ $g['period'] ?? '' }}" maxlength="80" placeholder="เช่น เดือน กันยายน 2569"></label>
                         <label class="muted" style="display:grid;gap:.2rem;font-weight:600">หน่วยงาน<input type="text" name="unit" value="{{ $g['unit'] ?? '' }}" maxlength="150"></label>
                         <label class="muted" style="display:grid;gap:.2rem;font-weight:600">ชื่อแถวรวม<input type="text" name="total_label" value="{{ $g['total_label'] ?? 'ทั้งหมด' }}" maxlength="60"></label>
                     </div>
-                    <p class="muted" style="margin:0">ส่วนประกอบ (2–4 ส่วน รวมกันเป็นยอดทั้งหมด)</p>
+                    <p class="muted" style="margin:0">ส่วนประกอบ (2–4 ส่วน รวมกันเป็นยอดทั้งหมด เช่น ใช้จริง + ผูกพัน + คงเหลือ = งบทั้งหมด)</p>
                     @for ($i = 0; $i < 4; $i++)
                         @php($part = $g['parts'][$i] ?? null)
                         <div class="form-row">
@@ -72,14 +116,11 @@
                             </select></label>
                         </div>
                     @endfor
-                    <div><button class="btn btn-primary" type="submit">บันทึกอินโฟกราฟิก</button></div>
+                    <div><button class="btn btn-primary" type="submit">บันทึกแบบสัดส่วน</button></div>
                 </form>
-                @if ($data)
-                    <form method="POST" action="{{ route('dashboards.image.upload', $dashboard) }}" enctype="multipart/form-data" class="form-row" style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem">
-                        @csrf
-                        <label>รูปหัวรายงาน (อาคาร/โลโก้ · jpg/png ≤ 5 MB)<input type="file" name="image" accept="image/jpeg,image/png,image/webp" required></label>
-                        <button class="btn btn-outline" type="submit">อัปโหลดรูป</button>
-                    </form>
+                @if ($data && ! $story)
+                    <form method="POST" action="{{ route('dashboards.infographic.update', $dashboard) }}" style="margin-top:.6rem">@csrf @method('PUT')<input type="hidden" name="mode" value="auto"><button class="btn btn-ghost" type="submit">เปลี่ยนเป็นแบบเล่าเรื่องตามเนื้อหารายงาน</button></form>
+                    @include('dashboards._infographic_image_form')
                 @endif
             </details>
         @endif
@@ -89,13 +130,25 @@
 
 @push('scripts')
 @if ($data)
-<script src="{{ asset('js/infographic-render.js') }}"></script>
 <script>
 (function () {
-    var fit = document.getElementById('fit'), scaler = document.getElementById('scaler');
-    function rescale() { scaler.style.transform = 'scale(' + (fit.clientWidth / 1536) + ')'; }
+    var fit = document.getElementById('fit'), scaler = document.getElementById('scaler'), W = {{ $dims[0] }}, story = {{ $story ? 'true' : 'false' }};
+    function rescale() {
+        var k = fit.clientWidth / W;
+        scaler.style.transform = 'scale(' + k + ')';
+        if (story) { fit.style.height = (scaler.offsetHeight * k) + 'px'; }
+    }
     window.addEventListener('resize', rescale); rescale();
-    (document.fonts ? document.fonts.ready : Promise.resolve()).then(function () { MscInfographic.draw({ renderer: 'canvas' }); });
+    var ready = document.fonts ? document.fonts.ready : Promise.resolve();
+    @if ($story)
+    var s = document.createElement('script'); s.src = '{{ asset('js/dashboard-render.js') }}';
+    s.onload = function () { var t = document.createElement('script'); t.src = '{{ asset('js/infographic-story.js') }}'; t.onload = function () { ready.then(function () { MscStory.draw({ renderer: 'canvas' }); rescale(); }); }; document.body.appendChild(t); };
+    document.body.appendChild(s);
+    @else
+    var s = document.createElement('script'); s.src = '{{ asset('js/infographic-render.js') }}';
+    s.onload = function () { ready.then(function () { MscInfographic.draw({ renderer: 'canvas' }); }); };
+    document.body.appendChild(s);
+    @endif
 })();
 </script>
 @endif

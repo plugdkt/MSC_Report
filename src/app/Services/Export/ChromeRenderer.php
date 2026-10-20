@@ -65,13 +65,6 @@ class ChromeRenderer
     }
 
     /**
-     * @template T
-     *
-     * @param  array{0:int,1:int}  $window
-     * @param  callable(Page): T  $work
-     * @return T
-     */
-    /**
      * ให้ Chrome แปลงชื่อเฉพาะ host ภายในที่อนุญาต — ที่เหลือใช้งานไม่ได้ (ป้องกัน SSRF)
      */
     private function hostLockFlag(): string
@@ -82,6 +75,13 @@ class ChromeRenderer
         return '--host-resolver-rules=MAP * ~NOTFOUND , '.implode(' , ', array_map(fn ($h) => 'EXCLUDE '.$h, $hosts));
     }
 
+    /**
+     * @template T
+     *
+     * @param  array{0:int,1:int}  $window
+     * @param  callable(Page): T  $work
+     * @return T
+     */
     private function withPage(string $url, array $window, callable $work): mixed
     {
         $profile = sys_get_temp_dir().DIRECTORY_SEPARATOR.'msc-chrome-'.bin2hex(random_bytes(6));

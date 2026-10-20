@@ -113,7 +113,7 @@ class ReportPlanner
             }
         }
 
-        $spec['infographic'] ??= $this->infographics->suggest($dataset, $draft->user->div_name);
+        $spec['infographic'] = $this->infographics->forSpec($dataset, $spec, $draft->user->div_name);
 
         $spec['theme'] ??= Org::defaultTheme();
 

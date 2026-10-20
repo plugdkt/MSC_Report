@@ -20,6 +20,75 @@ class InfographicSuggester
     ];
 
     /**
+     * เลือกแบบอินโฟกราฟิกให้เหมาะกับรายงาน: ถ้า AI ออกแบบมาแล้วใช้ตามนั้น,
+     * ถ้าข้อมูลเป็นงบประมาณ (ใช้จริง/ผูกพัน/คงเหลือ) ใช้แบบสัดส่วนตามที่ผู้บริหารใช้, นอกนั้นประกอบแบบเล่าเรื่องจาก widget
+     *
+     * @param  array<string, mixed>  $spec  spec ที่ผ่าน SpecValidator แล้ว
+     * @return array<string, mixed>|null
+     */
+    public function forSpec(Dataset $dataset, array $spec, ?string $userUnit = null): ?array
+    {
+        if (! empty($spec['infographic']['enabled'])) {
+            return $spec['infographic'];
+        }
+        $parts = $this->suggest($dataset, $userUnit);
+        if ($parts !== null && $parts['total_label'] === 'งบประมาณทั้งหมด') {
+            return $parts;
+        }
+
+        return $this->story($dataset, $spec, $userUnit);
+    }
+
+    /**
+     * ประกอบอินโฟกราฟิกแบบเล่าเรื่องจาก widget ของรายงาน (ไม่ผูกกับงานด้านใดด้านหนึ่ง)
+     *
+     * @param  array<string, mixed>  $spec
+     * @return array<string, mixed>
+     */
+    public function story(Dataset $dataset, array $spec, ?string $userUnit = null): array
+    {
+        $widgets = collect($spec['widgets'] ?? []);
+        $first = fn (array $types) => $widgets->first(fn ($w) => in_array($w['type'], $types, true));
+
+        $kpis = $widgets->whereIn('type', ['kpi'])->take(4)->pluck('id')->all();
+        $ring = $first(['pie']) ?? $first(['gauge']);
+        $bars = $first(['bar']);
+        $trend = $first(['line']);
+        $list = $first(['table']);
+
+        $blocks = [];
+        if ($kpis !== []) {
+            $blocks[] = ['type' => 'kpis', 'refs' => $kpis];
+        }
+        if ($ring) {
+            $blocks[] = ['type' => 'ring', 'ref' => $ring['id'], 'title' => $ring['title']];
+        }
+        if ($bars) {
+            $blocks[] = ['type' => 'bars', 'ref' => $bars['id'], 'title' => $bars['title'], 'limit' => 8];
+        }
+        if ($trend) {
+            $blocks[] = ['type' => 'trend', 'ref' => $trend['id'], 'title' => $trend['title']];
+        }
+        if ($list) {
+            $blocks[] = ['type' => 'list', 'ref' => $list['id'], 'title' => $list['title'], 'limit' => 8];
+        }
+        $blocks[] = ['type' => 'highlights', 'title' => 'ประเด็นสำคัญสำหรับผู้บริหาร'];
+
+        $charts = count(array_filter($blocks, fn ($b) => in_array($b['type'], ['ring', 'bars', 'trend', 'list'], true)));
+        $size = $list || $charts >= 4 ? 'a4p' : ($charts >= 2 ? 'a4l' : 'wide');
+
+        return [
+            'mode' => 'story',
+            'enabled' => true,
+            'title' => $spec['title'] ?? 'สรุป'.$dataset->name,
+            'subtitle' => trim(implode(' · ', array_filter([$dataset->period_label ? 'งวด '.$dataset->period_label : null, $userUnit ? 'หน่วยงาน '.$userUnit : null]))) ?: null,
+            'size' => $size,
+            'blocks' => $blocks,
+            'image' => null,
+        ];
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     public function suggest(Dataset $dataset, ?string $userUnit = null): ?array

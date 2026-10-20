@@ -9,6 +9,7 @@ use App\Models\ReportDraft;
 use App\Services\Ai\AiGateway;
 use App\Services\CodeLookup;
 use App\Services\Report\DashboardService;
+use App\Services\Report\InfographicSuggester;
 use App\Services\Report\NarrativeService;
 use App\Services\Report\SpecValidator;
 use Illuminate\Http\JsonResponse;
@@ -162,6 +163,10 @@ class DashboardController extends Controller
             'dashboard' => $dashboard,
             'spec' => $version->spec,
             'data' => $version->computed_data['_infographic'] ?? null,
+            'summary' => $version->executive_summary,
+            'widgets' => $version->spec['widgets'],
+            'sizes' => config('export.infographic_sizes'),
+            'blockTypes' => SpecValidator::INFOGRAPHIC_BLOCKS,
             'canEdit' => $this->canEdit($request, $dashboard),
             'columns' => $dashboard->dataset->columns()->where('is_hidden', false)->get()->filter->isNumeric()->values(),
         ]);
@@ -170,6 +175,11 @@ class DashboardController extends Controller
     public function updateInfographic(Request $request, Dashboard $dashboard): RedirectResponse
     {
         $this->authorizeEdit($request, $dashboard);
+
+        $mode = $request->input('mode', 'parts');
+        if (in_array($mode, ['auto', 'story'], true)) {
+            return $this->saveStoryInfographic($request, $dashboard, $mode);
+        }
         $request->merge(['parts' => array_values(array_filter((array) $request->input('parts', []), fn ($p) => filled($p['column'] ?? null) && filled($p['label'] ?? null)))]);
         $data = $request->validate([
             'title' => ['nullable', 'string', 'max:200'],
@@ -198,6 +208,55 @@ class DashboardController extends Controller
         return $version
             ? back()->with('status', 'บันทึกอินโฟกราฟิกแล้ว')
             : back()->with('error', implode(' · ', $errors));
+    }
+
+    /**
+     * อินโฟกราฟิกแบบเล่าเรื่อง: auto = ให้ระบบจัดจาก widget ใหม่, story = ตามที่ผู้ใช้เลือกบล็อก/ขนาด
+     */
+    private function saveStoryInfographic(Request $request, Dashboard $dashboard, string $mode): RedirectResponse
+    {
+        $spec = $dashboard->currentVersion->spec;
+        $suggester = app(InfographicSuggester::class);
+
+        if ($mode === 'auto') {
+            $g = $suggester->story($dashboard->dataset, $spec, $request->user()->div_name);
+            $g['image'] = $spec['infographic']['image'] ?? null;
+        } else {
+            $data = $request->validate([
+                'size' => ['required', Rule::in(array_keys(config('export.infographic_sizes')))],
+                'title' => ['nullable', 'string', 'max:200'],
+                'subtitle' => ['nullable', 'string', 'max:160'],
+                'blocks' => ['nullable', 'array', 'max:12'],
+                'blocks.*.type' => ['nullable', Rule::in(array_keys(SpecValidator::INFOGRAPHIC_BLOCKS))],
+                'blocks.*.ref' => ['nullable', 'string', 'max:20'],
+                'blocks.*.title' => ['nullable', 'string', 'max:80'],
+                'blocks.*.text' => ['nullable', 'string', 'max:600'],
+            ]);
+            $kpis = collect($spec['widgets'])->where('type', 'kpi')->take(4)->pluck('id')->all();
+            $blocks = [];
+            foreach ((array) ($data['blocks'] ?? []) as $b) {
+                if (empty($b['type'])) {
+                    continue;
+                }
+                $blocks[] = ['type' => $b['type'], 'ref' => $b['ref'] ?? null, 'title' => $b['title'] ?? null, 'text' => $b['text'] ?? null]
+                    + ($b['type'] === 'kpis' ? ['refs' => $kpis] : []);
+            }
+            $g = [
+                'mode' => 'story', 'enabled' => true, 'size' => $data['size'], 'title' => $data['title'] ?? null, 'subtitle' => $data['subtitle'] ?? null,
+                'blocks' => $blocks, 'image' => $spec['infographic']['image'] ?? null,
+            ];
+        }
+
+        $spec['infographic'] = $g;
+        [$version, $errors] = $this->dashboards->saveVersion($dashboard, $spec, $request->user(), 'user', 'แก้ไขอินโฟกราฟิก');
+        if (! $version) {
+            return back()->with('error', implode(' · ', $errors));
+        }
+        if (empty($version->spec['infographic']['enabled'])) {
+            return back()->with('error', 'ไม่มีบล็อกที่ใช้ได้ — เลือกประเภทและตัวเลขจากรายงานอย่างน้อย 1 บล็อก');
+        }
+
+        return back()->with('status', $mode === 'auto' ? 'จัดอินโฟกราฟิกจากรายงานใหม่แล้ว' : 'บันทึกอินโฟกราฟิกแล้ว');
     }
 
     public function uploadImage(Request $request, Dashboard $dashboard): RedirectResponse

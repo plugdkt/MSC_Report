@@ -47,10 +47,35 @@ class AggregationEngine
         }
 
         if (! empty($spec['infographic']['enabled'])) {
-            $out['_infographic'] = $this->infographic($base, $spec['infographic']);
+            $out['_infographic'] = ($spec['infographic']['mode'] ?? 'parts') === 'story'
+                ? $this->storyInfographic($out, $spec['infographic'])
+                : $this->infographic($base, $spec['infographic']);
         }
 
         return $out;
+    }
+
+    /**
+     * ประกอบข้อมูลของแต่ละบล็อกจากผลคำนวณของ widget ที่อ้าง (ไม่คำนวณตัวเลขใหม่)
+     *
+     * @param  array<string, array<string, mixed>>  $computed
+     * @param  array<string, mixed>  $g
+     * @return array<string, mixed>
+     */
+    private function storyInfographic(array $computed, array $g): array
+    {
+        $blocks = [];
+        foreach ($g['blocks'] as $i => $b) {
+            $row = ['key' => 'b'.$i] + $b;
+            if ($b['type'] === 'kpis') {
+                $row['items'] = array_map(fn ($ref) => ['ref' => $ref] + $computed[$ref], $b['refs']);
+            } elseif (isset($b['ref'])) {
+                $row['data'] = ['ref' => $b['ref']] + $computed[$b['ref']];
+            }
+            $blocks[] = $row;
+        }
+
+        return ['mode' => 'story', 'blocks' => $blocks];
     }
 
     /**
