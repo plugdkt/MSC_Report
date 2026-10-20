@@ -38,14 +38,16 @@
                     <input type="text" name="base_url" value="{{ $config->get('base_url') }}" placeholder="https://ai.example.ac.th/v1">
                 </label>
                 <label class="muted" style="display:grid;gap:.2rem;font-weight:600">โมเดลหลัก (ถามคำถาม/วางแผน)
-                    <input type="text" name="model_smart" value="{{ $config->get('model_smart') }}">
+                    <input type="text" name="model_smart" value="{{ $config->get('model_smart') }}" list="ai-models">
                 </label>
                 <label class="muted" style="display:grid;gap:.2rem;font-weight:600">โมเดลเบา (งานสั้น — ว่าง = ใช้โมเดลหลัก)
-                    <input type="text" name="model_fast" value="{{ $config->get('model_fast') }}">
+                    <input type="text" name="model_fast" value="{{ $config->get('model_fast') }}" list="ai-models">
+                    <datalist id="ai-models">@foreach ($models as $m)<option value="{{ $m }}">@endforeach</datalist>
                 </label>
                 <label class="muted" style="display:grid;gap:.2rem;font-weight:600">Timeout (วินาที)
                     <input type="text" inputmode="numeric" name="timeout" value="{{ $config->get('timeout') }}">
                 </label>
+                @if ($models)<p class="muted" style="grid-column:1/-1;margin:0;font-size:.9rem">พบ {{ count($models) }} โมเดลจาก gateway — พิมพ์ในช่องโมเดลเพื่อเลือก</p>@endif
                 <label class="check" style="align-self:end"><input type="hidden" name="json_mode" value="0"><input type="checkbox" name="json_mode" value="1" @checked($config->get('json_mode'))> รองรับ JSON mode (response_format)</label>
             </div>
 

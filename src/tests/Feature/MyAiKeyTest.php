@@ -60,6 +60,7 @@ class MyAiKeyTest extends TestCase
 
     public function test_admin_configures_ai_and_revokes_user_key(): void
     {
+        Http::fake(['https://ai.example.ac.th/v1/models' => Http::response(['data' => [['id' => 'big'], ['id' => 'small']]])]);
         $admin = User::factory()->admin()->create();
         $credential = $this->giveKey($this->user);
 
@@ -73,7 +74,7 @@ class MyAiKeyTest extends TestCase
         $this->assertSame('https://ai.example.ac.th/v1', Setting::get('ai.base_url'));
         $this->assertSame('sk-org-shared', Setting::get('ai.shared_key'));
 
-        $this->actingAs($admin)->get(route('admin.ai.edit'))->assertOk()->assertDontSee('sk-org-shared')->assertSee($this->user->name);
+        $this->actingAs($admin)->get(route('admin.ai.edit'))->assertOk()->assertDontSee('sk-org-shared')->assertSee($this->user->name)->assertSee('พบ 2 โมเดลจาก gateway');
         $this->actingAs($admin)->post(route('admin.ai.revoke', $credential))->assertSessionHas('status');
         $this->assertSame('revoked', $credential->fresh()->status);
     }

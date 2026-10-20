@@ -11,7 +11,9 @@ use App\Services\Ai\AiException;
 use App\Services\Ai\AiGateway;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -30,7 +32,30 @@ class AiSettingsController extends Controller
                 ->selectRaw('key_source, sum(input_tokens + output_tokens) as tokens, sum(request_count) as requests')
                 ->groupBy('key_source')->get()->keyBy('key_source'),
             'cacheSaved' => (int) DB::table('ai_response_cache')->selectRaw('coalesce(sum(tokens_saved * hit_count), 0) as s')->value('s'),
+            'models' => $this->availableModels($config),
         ]);
+    }
+
+    /**
+     * รายชื่อโมเดลจาก {base_url}/models (ถ้า gateway เปิดให้ดู) — ใช้เป็นตัวเลือกในช่องโมเดล
+     *
+     * @return list<string>
+     */
+    private function availableModels(AiConfig $config): array
+    {
+        $base = $config->get('base_url');
+        if (! $base) {
+            return [];
+        }
+
+        return Cache::remember('ai.models.'.md5($base), now()->addMinutes(10), function () use ($base) {
+            try {
+                return collect(Http::timeout(8)->acceptJson()->get($base.'/models')->json('data', []))
+                    ->pluck('id')->filter()->values()->all();
+            } catch (\Throwable) {
+                return [];
+            }
+        });
     }
 
     public function update(Request $request): RedirectResponse
