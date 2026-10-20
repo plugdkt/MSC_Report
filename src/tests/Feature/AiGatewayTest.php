@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AiUsage;
 use App\Models\Setting;
 use App\Models\User;
+use App\Models\UserAiCredential;
 use App\Services\Ai\AiException;
 use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiRequest;
@@ -52,7 +53,7 @@ class AiGatewayTest extends TestCase
             && $r->hasHeader('Authorization', 'Bearer sk-personal-key-9999')
             && $r['model'] === 'org-model-large'
             && $r['messages'][0]['role'] === 'system'
-            && $r['max_tokens'] === 1200);
+            && $r['max_tokens'] === 3000);
         $this->assertSame(1200, AiUsage::monthTotal($this->user->id, 'personal'));
         $this->assertNotNull($this->user->aiCredential->fresh()->last_used_at);
         $this->assertSame(1, DB::table('ai_messages')->where('input_tokens', 1000)->count());
@@ -166,6 +167,31 @@ class AiGatewayTest extends TestCase
         $this->assertSame('{"cached":true}', $second->text);
         Http::assertSentCount(1);
         $this->assertSame(1, (int) DB::table('ai_response_cache')->value('hit_count'));
+    }
+
+    public function test_gateway_daily_quota_is_remembered_and_reasoning_overflow_is_explained(): void
+    {
+        $credential = $this->giveKey($this->user);
+        Http::fakeSequence(self::AI_URL)
+            ->push(['model' => 'org-model-large', 'choices' => [['message' => ['content' => '{}'], 'finish_reason' => 'stop']], 'usage' => ['prompt_tokens' => 10, 'completion_tokens' => 2],
+                'model_quota' => ['daily_quota_tokens' => 150000, 'daily_usage_tokens' => 512, 'daily_remaining_tokens' => 149488]])
+            ->push(['model' => 'org-model-large', 'choices' => [['message' => ['content' => null, 'reasoning' => 'คิด…'], 'finish_reason' => 'length']], 'usage' => ['prompt_tokens' => 10, 'completion_tokens' => 3000]]);
+
+        $this->gateway()->complete($this->user, $this->request());
+        $this->assertSame(149488, $credential->fresh()->quota['org-model-large']['remaining']);
+
+        $this->expectExceptionMessage('ใช้ token คิดจนหมดก่อนตอบ');
+        $this->gateway()->complete($this->user, new AiRequest('clarify', 'อื่น', [['role' => 'user', 'content' => 'ใหม่']]));
+    }
+
+    public function test_pasted_key_is_cleaned_and_errors_show_gateway_reason(): void
+    {
+        $this->assertSame('sk_abc123', UserAiCredential::clean(" Bearer sk_abc\n123 "));
+        $this->assertSame('sk_abc123', UserAiCredential::clean('"sk_abc123"'));
+
+        $e = AiException::fromStatus(403, '{"error":"Model not allowed for this key: sk_secretsecret"}', 'big-model');
+        $this->assertStringContainsString('ไม่มีสิทธิ์ใช้โมเดล big-model', $e->getMessage());
+        $this->assertStringNotContainsString('sk_secretsecret', $e->getMessage());
     }
 
     public function test_stored_key_is_encrypted_and_hidden(): void

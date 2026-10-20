@@ -64,6 +64,27 @@
             @endif
         </div>
 
+        @if ($credential?->quota)
+            <div class="card" style="margin-bottom:1.2rem">
+                <h2 style="font-size:1.2rem">โควต้ารายวันจาก UP AI Connect</h2>
+                <p class="muted" style="margin:0 0 .6rem;font-size:.92rem">ตัวเลขล่าสุดที่ gateway แจ้งกลับมา (รีเซ็ตทุกวัน แยกตามโมเดล)</p>
+                <table>
+                    <thead><tr><th>โมเดล</th><th>ใช้ไปวันนี้</th><th>คงเหลือ</th><th>โควต้า/วัน</th><th>อัปเดต</th></tr></thead>
+                    <tbody>
+                        @foreach ($credential->quota as $model => $q)
+                            <tr>
+                                <td>{{ $model }}</td>
+                                <td>{{ number_format($q['used']) }}</td>
+                                <td><b>{{ number_format($q['remaining']) }}</b> <span class="muted">({{ $q['quota'] ? round($q['remaining'] / $q['quota'] * 100) : 0 }}%)</span></td>
+                                <td>{{ number_format($q['quota']) }}</td>
+                                <td style="white-space:nowrap">{{ \App\Support\Thai::date($q['at'] ?? null, true) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+
         <div class="card">
             <h2 style="font-size:1.2rem">การใช้ token เดือนนี้</h2>
             <div class="tiles" style="grid-template-columns:repeat(3,1fr)">

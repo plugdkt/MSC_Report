@@ -45,7 +45,7 @@ class AiGateway
      */
     public function testKey(string $apiKey): AiResponse
     {
-        return $this->transport->send($apiKey, new AiRequest('test', 'ตอบสั้นที่สุด', [['role' => 'user', 'content' => 'ตอบคำว่า ok']], 'fast', 16));
+        return $this->transport->send($apiKey, new AiRequest('test', 'Reply with one word.', [['role' => 'user', 'content' => 'Reply: ok']], 'fast'));
     }
 
     /**
@@ -78,9 +78,10 @@ class AiGateway
             $lock->release();
         }
 
-        $response = new AiResponse($response->text, $response->inputTokens ?: $request->estimatedInputTokens(), $response->outputTokens ?: TokenEstimator::estimate($response->text), $response->model, false, $source);
+        $response = new AiResponse($response->text, $response->inputTokens ?: $request->estimatedInputTokens(), $response->outputTokens ?: TokenEstimator::estimate($response->text), $response->model, false, $source, $response->quota);
         AiUsage::record($user->id, $source, $response->inputTokens, $response->outputTokens);
         $credential?->forceFill(['last_used_at' => now(), 'status' => 'active', 'last_error' => null])->save();
+        $credential?->rememberQuota($response->model, $response->quota);
         $this->log($user, $dataset, $request, $response, $cacheKey, $source, null, (int) ((hrtime(true) - $started) / 1e6));
 
         return $response;

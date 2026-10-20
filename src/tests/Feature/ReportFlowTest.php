@@ -138,7 +138,8 @@ class ReportFlowTest extends TestCase
 
         $this->assertSame('rule', $draft->mode);
         $this->assertSame('questions', $draft->status);
-        $this->assertStringContainsString('API Key ใช้ไม่ได้', $draft->notices[0]);
+        $this->assertStringContainsString('API Key ไม่ถูกต้อง', $draft->notices[0]);
+        $this->assertStringContainsString('HTTP 401 unauthorized', $draft->notices[0]);
         $this->assertSame('invalid', $this->user->aiCredential->fresh()->status);
     }
 

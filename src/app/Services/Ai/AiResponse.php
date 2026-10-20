@@ -11,6 +11,8 @@ final class AiResponse
         public readonly string $model,
         public readonly bool $fromCache = false,
         public readonly string $keySource = 'none',
+        /** @var array{quota:int, used:int, remaining:int}|null */
+        public readonly ?array $quota = null,
     ) {}
 
     public function totalTokens(): int

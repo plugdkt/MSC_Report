@@ -16,9 +16,10 @@ return [
     'verify_ssl' => (bool) env('AI_VERIFY_SSL', true),
 
     'max_output_tokens' => [
-        'clarify' => 1200,
-        'plan' => 2500,
-        'test' => 16,
+        // เผื่อ token ที่โมเดลใช้ "คิดก่อนตอบ" (reasoning) — ถ้าน้อยไปโมเดลจะตอบไม่ทัน
+        'clarify' => 3000,
+        'plan' => 6000,
+        'test' => 300,
     ],
     'retries' => 2,
     'retry_delay_ms' => (int) env('AI_RETRY_DELAY_MS', 1500),

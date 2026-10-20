@@ -45,21 +45,22 @@ class MyAiController extends Controller
             'api_key.required' => 'กรุณาวาง API Key',
             'api_key.min' => 'API Key สั้นเกินไป',
         ]);
-        $key = trim($data['api_key']);
+        $key = UserAiCredential::clean($data['api_key']);
 
         try {
-            $gateway->testKey($key);
+            $test = $gateway->testKey($key);
         } catch (AiException $e) {
             return back()->with('error', 'ทดสอบ key ไม่ผ่าน จึงยังไม่บันทึก: '.$e->getMessage());
         }
 
-        UserAiCredential::updateOrCreate(['user_id' => $request->user()->id], UserAiCredential::attributesFor($key) + [
+        $credential = UserAiCredential::updateOrCreate(['user_id' => $request->user()->id], UserAiCredential::attributesFor($key) + [
             'status' => 'active',
             'last_verified_at' => now(),
             'last_error' => null,
         ]);
+        $credential->rememberQuota($test->model, $test->quota);
 
-        return back()->with('status', 'บันทึก API Key แล้ว (แสดงเฉพาะ 4 ตัวท้าย)');
+        return back()->with('status', 'บันทึก API Key แล้ว (แสดงเฉพาะ 4 ตัวท้าย) — ทดสอบกับโมเดล '.$test->model.' ผ่าน');
     }
 
     public function updateBudget(Request $request): RedirectResponse

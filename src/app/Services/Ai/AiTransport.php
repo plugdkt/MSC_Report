@@ -32,7 +32,7 @@ class AiTransport
         }
 
         if ($response->failed()) {
-            throw AiException::fromStatus($response->status(), (string) $response->body());
+            throw AiException::fromStatus($response->status(), (string) $response->body(), $model);
         }
 
         return $this->config->get('format') === 'anthropic'
@@ -87,11 +87,29 @@ class AiTransport
     private function parseOpenAi(Response $response, string $model): AiResponse
     {
         $text = $response->json('choices.0.message.content');
-        if (! is_string($text)) {
-            throw new AiException(AiException::BAD_RESPONSE, 'ระบบ AI ตอบกลับในรูปแบบที่ไม่รู้จัก — กรุณาแจ้งผู้ดูแลระบบตรวจ "รูปแบบ API"');
+        if (! is_string($text) || trim($text) === '') {
+            if (! is_array($response->json('choices'))) {
+                throw new AiException(AiException::BAD_RESPONSE, 'ระบบ AI ตอบกลับในรูปแบบที่ไม่รู้จัก — กรุณาแจ้งผู้ดูแลระบบตรวจ "รูปแบบ API"');
+            }
+            if ($response->json('choices.0.finish_reason') === 'length') {
+                throw new AiException(AiException::BAD_RESPONSE, "โมเดล {$model} ใช้ token คิดจนหมดก่อนตอบ — ให้ผู้ดูแลระบบเพิ่ม max_tokens หรือเลือกโมเดลอื่น", '');
+            }
+            $text = '';
         }
 
-        return new AiResponse($text, (int) $response->json('usage.prompt_tokens', 0), (int) $response->json('usage.completion_tokens', 0), (string) $response->json('model', $model));
+        $quota = $response->json('model_quota');
+
+        return new AiResponse(
+            $text,
+            (int) $response->json('usage.prompt_tokens', 0),
+            (int) $response->json('usage.completion_tokens', 0),
+            (string) $response->json('model', $model),
+            quota: is_array($quota) && isset($quota['daily_quota_tokens']) ? [
+                'quota' => (int) $quota['daily_quota_tokens'],
+                'used' => (int) ($quota['daily_usage_tokens'] ?? 0),
+                'remaining' => (int) ($quota['daily_remaining_tokens'] ?? 0),
+            ] : null,
+        );
     }
 
     private function parseAnthropic(Response $response, string $model): AiResponse
