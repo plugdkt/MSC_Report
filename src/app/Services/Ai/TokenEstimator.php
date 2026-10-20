@@ -3,11 +3,11 @@
 namespace App\Services\Ai;
 
 /**
- * ประมาณจำนวน token ก่อนเรียก AI (ภาษาไทยผสมอังกฤษ ≈ 3 ตัวอักษร/token — ปรับหลังวัดจริง, spec §6.5)
+ * ประมาณจำนวน token ก่อนเรียก AI — วัดจริงกับ UP AI Connect (claude-sonnet-5.5): profile JSON ภาษาไทยผสมตัวเลข ≈ 1.5 ตัวอักษร/token
  */
 class TokenEstimator
 {
-    public const CHARS_PER_TOKEN = 3.0;
+    public const CHARS_PER_TOKEN = 1.5;
 
     public static function estimate(string $text): int
     {

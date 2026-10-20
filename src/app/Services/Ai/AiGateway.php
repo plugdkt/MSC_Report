@@ -78,7 +78,7 @@ class AiGateway
             $lock->release();
         }
 
-        $response = new AiResponse($response->text, $response->inputTokens ?: $request->estimatedInputTokens(), $response->outputTokens ?: TokenEstimator::estimate($response->text), $response->model, false, $source, $response->quota);
+        $response = new AiResponse($response->text, $response->inputTokens ?: $request->estimatedInputTokens(), $response->outputTokens ?: TokenEstimator::estimate($response->text), $response->model, false, $source, $response->quota, $response->truncated);
         AiUsage::record($user->id, $source, $response->inputTokens, $response->outputTokens);
         $credential?->forceFill(['last_used_at' => now(), 'status' => 'active', 'last_error' => null])->save();
         $credential?->rememberQuota($response->model, $response->quota);

@@ -161,6 +161,10 @@ class ReportPlanner
     {
         for ($attempt = 0; $attempt <= self::MAX_REPAIRS; $attempt++) {
             $response = $this->ai->complete($draft->user, $request, $draft->dataset, useCache: $attempt === 0);
+            if ($response->truncated) {
+                // ให้แก้ซ้ำไม่ช่วย (จะถูกตัดอีก) — หยุดทันทีเพื่อไม่เสีย token
+                throw new AiException(AiException::BAD_RESPONSE, 'คำตอบของ AI ยาวเกินเพดาน '.number_format((int) config('ai.max_output_tokens.'.$request->stage)).' token — ให้ผู้ดูแลระบบเพิ่มเพดานหรือเลือกโมเดลอื่น');
+            }
             $data = JsonExtractor::decode($response->text);
             $errors = $data === null ? ['คำตอบไม่ใช่ JSON ที่ถูกต้อง'] : $validate($data);
 

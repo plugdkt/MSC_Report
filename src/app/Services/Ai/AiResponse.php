@@ -13,6 +13,8 @@ final class AiResponse
         public readonly string $keySource = 'none',
         /** @var array{quota:int, used:int, remaining:int}|null */
         public readonly ?array $quota = null,
+        /** true = คำตอบถูกตัดเพราะชนเพดาน max_tokens */
+        public readonly bool $truncated = false,
     ) {}
 
     public function totalTokens(): int

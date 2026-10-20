@@ -104,6 +104,7 @@ class AiTransport
             (int) $response->json('usage.prompt_tokens', 0),
             (int) $response->json('usage.completion_tokens', 0),
             (string) $response->json('model', $model),
+            truncated: $response->json('choices.0.finish_reason') === 'length',
             quota: is_array($quota) && isset($quota['daily_quota_tokens']) ? [
                 'quota' => (int) $quota['daily_quota_tokens'],
                 'used' => (int) ($quota['daily_usage_tokens'] ?? 0),
@@ -119,6 +120,6 @@ class AiTransport
             throw new AiException(AiException::BAD_RESPONSE, 'ระบบ AI ตอบกลับในรูปแบบที่ไม่รู้จัก — กรุณาแจ้งผู้ดูแลระบบตรวจ "รูปแบบ API"');
         }
 
-        return new AiResponse($text, (int) $response->json('usage.input_tokens', 0), (int) $response->json('usage.output_tokens', 0), (string) $response->json('model', $model));
+        return new AiResponse($text, (int) $response->json('usage.input_tokens', 0), (int) $response->json('usage.output_tokens', 0), (string) $response->json('model', $model), truncated: $response->json('stop_reason') === 'max_tokens');
     }
 }
