@@ -6,6 +6,7 @@ use App\Jobs\GeneratePlanJob;
 use App\Jobs\GenerateQuestionsJob;
 use App\Models\Dataset;
 use App\Models\ReportDraft;
+use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -18,13 +19,32 @@ use Illuminate\View\View;
  */
 class ReportDraftController extends Controller
 {
-    public function start(Request $request, Dataset $dataset): RedirectResponse
+    public function start(Request $request, Dataset $dataset): RedirectResponse|View
     {
         Gate::authorize('update', $dataset);
         abort_unless($dataset->status === 'ready', 409, 'ข้อมูลยังนำเข้าไม่เสร็จ');
 
-        $mode = $request->validate(['mode' => ['required', Rule::in(['ai', 'rule'])]])['mode'];
-        $draft = ReportDraft::create(['user_id' => $request->user()->id, 'dataset_id' => $dataset->id, 'mode' => $mode, 'status' => 'asking']);
+        $data = $request->validate([
+            'mode' => ['required', Rule::in(['ai', 'rule'])],
+            'consent' => ['nullable', 'boolean'],
+            'send_samples' => ['nullable', 'boolean'],
+        ]);
+        $mode = $data['mode'];
+        $user = $request->user();
+
+        // ก่อนส่งข้อมูลให้ AI ครั้งแรก ต้องรับทราบว่าอะไรถูกส่ง (spec FR-7.3)
+        if ($mode === 'ai' && ! $user->ai_consent_at) {
+            if (! $request->boolean('consent')) {
+                return view('drafts.consent', ['dataset' => $dataset]);
+            }
+            $user->forceFill(['ai_consent_at' => now()])->save();
+            Audit::log('ai.consent', summary: 'ยอมรับการส่งข้อมูลสรุปให้ AI');
+        }
+
+        $draft = ReportDraft::create([
+            'user_id' => $user->id, 'dataset_id' => $dataset->id, 'mode' => $mode, 'status' => 'asking',
+            'send_samples' => ! $request->has('consent') || $request->boolean('send_samples'),
+        ]);
         GenerateQuestionsJob::dispatch($draft->id);
 
         return redirect()->route('drafts.show', $draft);

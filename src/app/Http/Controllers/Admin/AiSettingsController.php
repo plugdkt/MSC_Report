@@ -9,6 +9,7 @@ use App\Models\UserAiCredential;
 use App\Services\Ai\AiConfig;
 use App\Services\Ai\AiException;
 use App\Services\Ai\AiGateway;
+use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -85,6 +86,8 @@ class AiSettingsController extends Controller
             Setting::put('ai.shared_key', trim($data['shared_key']), true);
         }
 
+        Audit::log('ai.settings', meta: ['base_url' => $data['base_url'] ?? null, 'format' => $data['format'], 'model' => $data['model_smart'] ?? null, 'shared_enabled' => (bool) ($data['shared_enabled'] ?? false)], summary: 'ตั้งค่า AI องค์กร');
+
         return back()->with('status', 'บันทึกการตั้งค่า AI แล้ว');
     }
 
@@ -110,6 +113,7 @@ class AiSettingsController extends Controller
     public function revoke(UserAiCredential $credential): RedirectResponse
     {
         $credential->update(['status' => 'revoked']);
+        Audit::log('ai.key_revoked', summary: $credential->user->username);
 
         return back()->with('status', 'ยกเลิก key ของ '.$credential->user->name.' แล้ว');
     }

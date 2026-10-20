@@ -8,6 +8,7 @@ use App\Models\UserAiCredential;
 use App\Services\Ai\AiConfig;
 use App\Services\Ai\AiException;
 use App\Services\Ai\AiGateway;
+use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -59,6 +60,7 @@ class MyAiController extends Controller
             'last_error' => null,
         ]);
         $credential->rememberQuota($test->model, $test->quota);
+        Audit::log('ai.key_saved', summary: '••••'.$credential->key_last4);
 
         return back()->with('status', 'บันทึก API Key แล้ว (แสดงเฉพาะ 4 ตัวท้าย) — ทดสอบกับโมเดล '.$test->model.' ผ่าน');
     }
@@ -75,6 +77,7 @@ class MyAiController extends Controller
     public function destroy(Request $request): RedirectResponse
     {
         $request->user()->aiCredential?->delete();
+        Audit::log('ai.key_deleted');
 
         return back()->with('status', 'ลบ API Key แล้ว');
     }

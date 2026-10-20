@@ -4,13 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreDatasetRequest;
 use App\Jobs\ImportDatasetJob;
+use App\Models\Dashboard;
 use App\Models\Dataset;
 use App\Models\DatasetColumn;
+use App\Models\ReportDraft;
 use App\Services\Ai\AiGateway;
 use App\Services\CodeLookup;
 use App\Services\Import\ImportException;
 use App\Services\Import\WorkbookInspector;
 use App\Services\Report\ReportPlanner;
+use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -59,6 +62,8 @@ class DatasetController extends Controller
             'expires_at' => now()->addDays(config('import.retention_days')),
         ]);
 
+        Audit::log('dataset.upload', $dataset, ['size' => $dataset->file_size], summary: $dataset->original_filename);
+
         return redirect()->route('datasets.sheets', $dataset);
     }
 
@@ -98,6 +103,7 @@ class DatasetController extends Controller
             'header_end' => ['required', 'integer', 'gte:header_start', 'lte:'.($request->integer('header_start') + 3)],
         ]);
 
+        Audit::log('dataset.import', $dataset, ['sheet' => $data['sheet']], summary: $dataset->name);
         $dataset->update(['status' => 'importing', 'sheet_name' => $data['sheet']]);
         ImportDatasetJob::dispatch($dataset->id, $data['sheet'], (int) $data['header_start'], (int) $data['header_end']);
 
@@ -168,7 +174,21 @@ class DatasetController extends Controller
     {
         Gate::authorize('delete', $dataset);
 
-        Storage::disk('local')->delete($dataset->stored_path);
+        // ลบต่อเนื่อง (spec FR-7.5): รายงาน เวอร์ชัน ไฟล์ส่งออก รูป และไฟล์ต้นฉบับ
+        $disk = Storage::disk('local');
+        foreach (Dashboard::where('dataset_id', $dataset->id)->with('exports')->get() as $dashboard) {
+            foreach ($dashboard->exports as $export) {
+                if ($export->file_path) {
+                    $disk->delete($export->file_path);
+                }
+            }
+            $disk->deleteDirectory('dashboards/'.$dashboard->id);
+            $dashboard->exports()->delete();
+            $dashboard->delete();
+        }
+        $disk->delete($dataset->stored_path);
+        ReportDraft::where('dataset_id', $dataset->id)->delete();
+        Audit::log('dataset.deleted', $dataset, summary: $dataset->name);
         $dataset->delete();
 
         return redirect()->route('home')->with('status', 'ลบข้อมูล "'.$dataset->name.'" แล้ว');

@@ -12,6 +12,7 @@ use App\Services\Report\SpecValidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -38,7 +39,10 @@ class DashboardController extends Controller
             'canEdit' => $this->canEdit($request, $dashboard),
             'themes' => SpecValidator::THEMES,
             'aiAvailable' => $ai->availability($request->user())['available'],
-            'exports' => $this->canEdit($request, $dashboard) ? $dashboard->exports()->latest()->limit(5)->get() : collect(),
+            'exports' => $dashboard->exports()->where('user_id', $request->user()->id)->latest()->limit(5)->get(),
+            'isOwner' => $this->canEdit($request, $dashboard),
+            'owner' => $dashboard->user,
+            'shares' => $this->canEdit($request, $dashboard) ? $dashboard->shares()->with('user')->latest()->get() : collect(),
         ]);
     }
 
@@ -198,16 +202,16 @@ class DashboardController extends Controller
 
     private function canEdit(Request $request, Dashboard $dashboard): bool
     {
-        return $dashboard->user_id === $request->user()->id;
+        return $request->user()->can('update', $dashboard);
     }
 
     private function authorizeView(Request $request, Dashboard $dashboard): void
     {
-        abort_unless($this->canEdit($request, $dashboard) || $request->user()->isAdmin(), 403);
+        Gate::authorize('view', $dashboard);
     }
 
     private function authorizeEdit(Request $request, Dashboard $dashboard): void
     {
-        abort_unless($this->canEdit($request, $dashboard), 403);
+        Gate::authorize('update', $dashboard);
     }
 }

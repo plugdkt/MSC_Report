@@ -11,6 +11,7 @@ use App\Services\CodeLookup;
 use App\Services\Import\ImportException;
 use App\Services\Import\SheetAnalyzer;
 use App\Services\Import\SpreadsheetReader;
+use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -38,6 +39,8 @@ class CodeSetController extends Controller
         ]);
         $set = CodeSet::create($data + ['sort' => (int) CodeSet::max('sort') + 1]);
 
+        Audit::log('admin.codes', summary: 'สร้างชุดรหัส');
+
         return redirect()->route('admin.codes.show', $set)->with('status', 'สร้างชุดรหัสแล้ว');
     }
 
@@ -61,6 +64,8 @@ class CodeSetController extends Controller
             'column_pattern' => ['nullable', 'string', 'max:255', $this->regexRule()],
         ]));
 
+        Audit::log('admin.codes', summary: 'แก้ตั้งค่าชุดรหัส');
+
         return back()->with('status', 'บันทึกการตั้งค่าแล้ว (มีผลกับไฟล์ที่นำเข้าครั้งถัดไป)');
     }
 
@@ -72,6 +77,8 @@ class CodeSetController extends Controller
         ]);
         $codeSet->values()->create(['code' => trim($data['code']), 'label' => trim($data['label'])]);
 
+        Audit::log('admin.codes', summary: 'เพิ่มรหัส');
+
         return back()->with('status', 'เพิ่มรหัส '.$data['code'].' แล้ว');
     }
 
@@ -80,6 +87,8 @@ class CodeSetController extends Controller
         abort_unless($value->code_set_id === $codeSet->id, 404);
         $value->update($request->validate(['label' => ['required', 'string', 'max:255']]));
 
+        Audit::log('admin.codes', summary: 'แก้ชื่อรหัส');
+
         return back()->with('status', 'บันทึกชื่อของรหัส '.$value->code.' แล้ว');
     }
 
@@ -87,6 +96,8 @@ class CodeSetController extends Controller
     {
         abort_unless($value->code_set_id === $codeSet->id, 404);
         $value->delete();
+
+        Audit::log('admin.codes', summary: 'ลบรหัส');
 
         return back()->with('status', 'ลบรหัส '.$value->code.' แล้ว');
     }
@@ -124,6 +135,8 @@ class CodeSetController extends Controller
             $count++;
         }
 
+        Audit::log('admin.codes', summary: 'นำเข้ารหัส');
+
         return back()->with('status', "นำเข้า/อัปเดตรหัส {$count} รายการ");
     }
 
@@ -136,6 +149,8 @@ class CodeSetController extends Controller
         ]);
         $codeSet->groupRules()->create($data + ['sort' => (int) $codeSet->groupRules()->max('sort') + 1]);
 
+        Audit::log('admin.codes', summary: 'เพิ่มกฎจัดกลุ่ม');
+
         return back()->with('status', 'เพิ่มกฎจัดกลุ่มแล้ว');
     }
 
@@ -143,6 +158,8 @@ class CodeSetController extends Controller
     {
         abort_unless($rule->code_set_id === $codeSet->id, 404);
         $rule->delete();
+
+        Audit::log('admin.codes', summary: 'ลบกฎจัดกลุ่ม');
 
         return back()->with('status', 'ลบกฎแล้ว');
     }

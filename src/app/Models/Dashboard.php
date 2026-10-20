@@ -28,6 +28,11 @@ class Dashboard extends Model
         return $this->hasMany(DashboardVersion::class)->orderByDesc('version');
     }
 
+    public function shares(): HasMany
+    {
+        return $this->hasMany(Share::class);
+    }
+
     public function exports(): HasMany
     {
         return $this->hasMany(Export::class);

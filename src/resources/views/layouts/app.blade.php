@@ -24,9 +24,12 @@
                         <details class="nav-menu">
                             <summary @class(['active' => request()->routeIs('admin.*')])>ผู้ดูแลระบบ ▾</summary>
                             <div class="nav-menu-list">
+                                <a href="{{ route('admin.overview') }}">ภาพรวมระบบ</a>
                                 <a href="{{ route('admin.users.index') }}">จัดการผู้ใช้</a>
                                 <a href="{{ route('admin.codes.index') }}">ตารางรหัส</a>
                                 <a href="{{ route('admin.ai.edit') }}">ตั้งค่า AI</a>
+                                <a href="{{ route('admin.settings.edit') }}">ตั้งค่าระบบ</a>
+                                <a href="{{ route('admin.audit.index') }}">บันทึกกิจกรรม</a>
                             </div>
                         </details>
                     @endif
@@ -62,7 +65,7 @@
 
     <footer class="site-footer">
         <div class="container">
-            <span>© {{ now()->year + 543 }} MSC Report · คณะวิทยาศาสตร์การแพทย์ มหาวิทยาลัยพะเยา</span>
+            <span>© {{ now()->year + 543 }} MSC Report · {{ \App\Support\Org::name() }}</span>
             <span>เข้าสู่ระบบด้วย UP Account ผ่าน MEDSCI ACC</span>
         </div>
     </footer>

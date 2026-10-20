@@ -13,6 +13,13 @@ return [
     // URL ที่ Chrome ใช้เปิดหน้า render ภายในเครื่อง (ไม่ผ่านอินเทอร์เน็ต) — Docker: http://web · IIS: http://localhost
     'internal_url' => env('EXPORT_INTERNAL_URL', 'http://web'),
 
+    // หน้า render รับเฉพาะ IP ในช่วงนี้ (Docker network เป็น private) — ปิดด้วย false ถ้าอยู่หลัง proxy
+    'render_local_only' => (bool) env('EXPORT_RENDER_LOCAL_ONLY', true),
+    'render_allowed_ranges' => ['127.0.0.0/8', '::1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', 'fc00::/7'],
+
+    // Chrome เข้าได้เฉพาะ host เหล่านี้ (กัน SSRF ผ่านเนื้อหาที่ผู้ใช้ใส่)
+    'chrome_allowed_hosts' => ['web', 'localhost', '127.0.0.1'],
+
     'retention_days' => (int) env('EXPORT_RETENTION_DAYS', 7),
     'timeout' => (int) env('EXPORT_TIMEOUT', 60),
     'jpeg_quality' => 90,

@@ -29,6 +29,7 @@ class HomeController extends Controller
         return view('home', [
             'user' => $request->user(),
             'datasets' => $request->user()->datasets()->latest()->get(),
+            'shared' => $request->user()->sharedDashboards()->with('user', 'currentVersion')->latest('shares.created_at')->get(),
             'dashboards' => Dashboard::where('user_id', $request->user()->id)->with('currentVersion', 'dataset')->latest('updated_at')->get(),
         ]);
     }

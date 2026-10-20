@@ -89,7 +89,7 @@ class TemplateWorkbookBuilder
     {
         foreach ($fields as $i => $f) {
             $col = Coordinate::stringFromColumnIndex($i + 1);
-            $s->setCellValue("{$col}1", $f['label']);
+            $s->setCellValueExplicit("{$col}1", (string) $f['label'], DataType::TYPE_STRING);
             $s->getColumnDimension($col)->setWidth($f['width'] ?? 16);
             $range = "{$col}2:{$col}".self::VALIDATED_ROWS;
 
@@ -135,7 +135,7 @@ class TemplateWorkbookBuilder
             }
             $listCol++;
             $lc = Coordinate::stringFromColumnIndex($listCol);
-            $lists->setCellValue("{$lc}1", $f['label']);
+            $lists->setCellValueExplicit("{$lc}1", (string) $f['label'], DataType::TYPE_STRING);
             foreach ($f['options'] as $r => $option) {
                 $lists->setCellValueExplicit($lc.($r + 2), $option, DataType::TYPE_STRING);
             }
@@ -163,9 +163,9 @@ class TemplateWorkbookBuilder
      */
     private function helpSheet(Worksheet $s, array $template, array $fields): void
     {
-        $s->setCellValue('A1', $template['name']);
+        $s->setCellValueExplicit('A1', (string) $template['name'], DataType::TYPE_STRING);
         $s->getStyle('A1')->getFont()->setBold(true)->setSize(22);
-        $s->setCellValue('A2', $template['description'] ?? '');
+        $s->setCellValueExplicit('A2', (string) ($template['description'] ?? ''), DataType::TYPE_STRING);
         $s->setCellValue('A4', 'วิธีใช้: กรอกข้อมูลในชีต "ข้อมูล" ตั้งแต่แถวที่ 2 ลงไป ห้ามแก้ชื่อหัวตาราง ห้ามแทรกแถวยอดรวม แล้วอัปโหลดไฟล์นี้กลับเข้าระบบ MSC Report');
         $s->setCellValue('A5', 'ไฟล์นี้มีรหัสแบบฟอร์มฝังอยู่ ระบบจะรู้จักคอลัมน์ทั้งหมดอัตโนมัติ');
 

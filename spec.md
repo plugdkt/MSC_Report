@@ -1,6 +1,6 @@
 # spec.md — ระบบสรุปผลงานเจ้าหน้าที่ด้วย AI (AI Work Summary Dashboard)
 
-> เวอร์ชันเอกสาร: 0.12 (M0–M4 เสร็จ: ส่งออก PDF/JPEG/PNG ด้วย Headless Chrome — ดู §11 และ §9.3) · วันที่: 2026-10-20
+> เวอร์ชันเอกสาร: 0.13 (M0–M5 เสร็จ: แชร์, Admin, audit log, security hardening — ดู §10 และ §11) · วันที่: 2026-10-20
 > สถานะ: Draft สำหรับเริ่มพัฒนา
 
 ---
@@ -823,17 +823,17 @@ services:
 ---
 
 ## 10. Security Checklist
-- [ ] ไฟล์อัปโหลดเก็บนอก `public`, ตั้งชื่อใหม่เป็น UUID, ตรวจ MIME จริง
-- [ ] ป้องกัน XML External Entity / zip bomb ตอนอ่าน xlsx (จำกัดขนาดหลังแตกไฟล์)
-- [ ] ค่าเซลล์ที่ขึ้นต้นด้วย `= + - @` ต้อง escape ตอน export เป็น Excel/CSV (CSV injection)
-- [ ] Output encoding ทุกจุดใน Blade, ห้าม `{!! !!}` กับข้อมูลผู้ใช้/AI
-- [ ] หน้า `/render` ใช้ signed URL อายุสั้น และรับเฉพาะ request จาก localhost
-- [ ] Headless Chrome รันด้วยสิทธิ์ต่ำ, ปิดการเข้าถึง network ภายนอก (เฉพาะ host ของแอป)
-- [ ] API key ของผู้ใช้เข้ารหัสใน DB, ไม่ส่งไป frontend, ไม่อยู่ใน log / exception report / queue payload / debug bar
-- [ ] `APP_KEY` สำรองไว้นอก repo; ทดสอบขั้นตอน `ai-keys:rotate` ก่อนขึ้น production
-- [ ] ผู้ใช้กำหนดได้เฉพาะ key — Base URL ของ AI ตั้งโดย Admin เท่านั้น (กัน SSRF)
-- [ ] Authorization: ทุก request AI ต้องใช้ key ของเจ้าของ dataset เท่านั้น (Executive ที่ดู Dashboard ที่แชร์ไม่ทำให้ key ของเจ้าของถูกใช้ — สั่ง AI Refine ไม่ได้)
-- [ ] Authorization ผ่าน Laravel Policy ทุก resource (dataset, dashboard, export, share)
+- [x] ไฟล์อัปโหลดเก็บนอก `public`, ตั้งชื่อใหม่เป็น UUID, ตรวจ MIME จริง — ✅ เก็บใน storage/app/private, ชื่อไฟล์สุ่ม; `app:doctor` ตรวจ
+- [x] ป้องกัน XML External Entity / zip bomb ตอนอ่าน xlsx (จำกัดขนาดหลังแตกไฟล์) — ✅ ตรวจจำนวนไฟล์ย่อยและขนาดหลังแตก (`IMPORT_MAX_UNCOMPRESSED_MB`) ก่อนเปิดไฟล์
+- [x] ค่าเซลล์ที่ขึ้นต้นด้วย `= + - @` ต้อง escape ตอน export เป็น Excel/CSV (CSV injection) — ✅ ไฟล์ Excel ที่ระบบสร้างเขียนข้อความเป็น string ชัดเจน ไม่ถูกตีความเป็นสูตร
+- [x] Output encoding ทุกจุดใน Blade, ห้าม `{!! !!}` กับข้อมูลผู้ใช้/AI — ✅ Blade `{{ }}` ทุกจุด
+- [x] หน้า `/render` ใช้ signed URL อายุสั้น และรับเฉพาะ request จาก localhost — ✅ signed URL 5 นาทีผูก host + middleware `render.local` (IP ภายในเท่านั้น, ปิดได้ด้วย `EXPORT_RENDER_LOCAL_ONLY=false` เมื่ออยู่หลัง proxy)
+- [x] Headless Chrome รันด้วยสิทธิ์ต่ำ, ปิดการเข้าถึง network ภายนอก (เฉพาะ host ของแอป) — ✅ `--host-resolver-rules` อนุญาตเฉพาะ host ภายใน (กัน SSRF), no-sandbox เฉพาะใน container
+- [x] API key ของผู้ใช้เข้ารหัสใน DB, ไม่ส่งไป frontend, ไม่อยู่ใน log / exception report / queue payload / debug bar — ✅ เข้ารหัสด้วย APP_KEY, ซ่อนใน model, audit ไม่เก็บ key
+- [x] `APP_KEY` สำรองไว้นอก repo; ทดสอบขั้นตอน `ai-keys:rotate` ก่อนขึ้น production — ✅ คำสั่ง `ai-keys:rotate --old-key=… [--dry-run]` (มีเทสต์); ยังต้องทดสอบบนเครื่องจริงก่อนขึ้น production
+- [x] ผู้ใช้กำหนดได้เฉพาะ key — Base URL ของ AI ตั้งโดย Admin เท่านั้น (กัน SSRF) — ✅ Base URL ตั้งโดย Admin เท่านั้น
+- [x] Authorization: ทุก request AI ต้องใช้ key ของเจ้าของ dataset เท่านั้น (Executive ที่ดู Dashboard ที่แชร์ไม่ทำให้ key ของเจ้าของถูกใช้ — สั่ง AI Refine ไม่ได้) — ✅ AI ใช้ key ของผู้เรียก (เจ้าของ dataset); ผู้ดูที่ถูกแชร์แก้ไข/สั่ง AI ไม่ได้
+- [x] Authorization ผ่าน Laravel Policy ทุก resource (dataset, dashboard, export, share) — ✅ DatasetPolicy/DashboardPolicy/ExportPolicy + เทสต์ IDOR matrix
 - [ ] Backup MariaDB รายวัน + ทดสอบ restore
 
 ---
@@ -864,6 +864,15 @@ services:
   - Self-host ทุกอย่าง: ฟอนต์ Sarabun (`public/fonts`, OFL), ECharts, Gridstack (`public/vendor`) — ไม่พึ่ง CDN ทั้งหน้าเว็บและตอนส่งออก
   - Docker: image มี Chromium + poppler-utils (สำหรับตรวจ PDF), nginx re-resolve DNS ของ container `app` ทุก 5 วินาที, worker/scheduler รันเป็น `www-data` (ไฟล์ที่ worker สร้างใน `storage/app/private` เป็น 0700 — ถ้ารันเป็น root แล้ว php-fpm จะอ่านไม่ได้) · คำสั่ง artisan ในเครื่อง dev ให้ใช้ `docker compose exec -u www-data app php artisan …`
   - เหลือ: ส่วนลงนามท้ายรายงาน (FR-6.3.1), รูปหัวรายงานในไฟล์ PDF, ส่งออกภาพทีละ widget, PPTX/Excel (เฟส 2), ขอบเขต PDF ของอินโฟกราฟิก 1 หน้า
+- ✅ **M5** — แชร์ / Admin / audit log / security hardening
+  - **แชร์** (FR-8.1): เจ้าของแชร์ให้ผู้ใช้ที่เคยเข้าระบบ (ค้นหา autocomplete) — ผู้รับดูและส่งออกได้ แก้ไข/แชร์ต่อ/ลบไม่ได้; หน้าแรกมี "แชร์ให้ฉัน"; ยกเลิกแชร์ได้ทันที
+  - **Admin**: ภาพรวมระบบ (ผู้ใช้, dataset, รายงาน, ส่งออก, token AI เดือนนี้, คิว/งานล้มเหลว), ตั้งค่าระบบ (ชื่อหน่วยงาน, ธีมเริ่มต้น), บันทึกกิจกรรม (กรองตามผู้ใช้/เหตุการณ์/วันที่)
+  - **Audit log**: login/logout/ล้มเหลว, อัปโหลด/นำเข้า/ลบข้อมูล, ยินยอม AI, บันทึก/ลบ/ยกเลิก key, ตั้งค่า AI, สร้าง/แก้/ย้อนกลับรายงาน, แชร์, ส่งออก/ดาวน์โหลด, งาน Admin — ไม่เก็บ key หรือข้อมูลดิบ
+  - **ความปลอดภัย**: Policy ทุก resource, ส่วนหัว CSP/nosniff/X-Frame/Referrer/Permissions (+HSTS บน production), throttle (SSO callback, อัปโหลด, เริ่ม/ตอบ draft, key), กัน zip bomb, Chrome host lock, หน้า render รับเฉพาะ IP ภายใน, ฟอนต์หน้า landing โหลดในเครื่อง
+  - **ข้อมูลส่วนบุคคล** (FR-7): หน้ายินยอมก่อนส่งข้อมูลให้ AI ครั้งแรก + ตัวเลือก "ไม่ส่งตัวอย่างแถว" (`report_drafts.send_samples`); ลบ dataset แล้วลบรายงาน/เวอร์ชัน/ไฟล์ส่งออก/รูป/ไฟล์ต้นฉบับต่อเนื่อง (FR-7.5)
+  - **เครื่องมือ**: `php artisan app:doctor` (ตรวจ env/ความพร้อมก่อนขึ้น production), `php artisan ai-keys:rotate`
+  - ทดสอบ: 116 เทสต์ผ่าน (รวม Chrome จริง และ IDOR matrix)
+  - เหลือ: ทดสอบ deploy บน IIS + benchmark 200k แถว, backup/restore MariaDB, ปรับสิทธิ์ CSP ให้เข้มขึ้น (ตัด `unsafe-inline`) ภายหลัง
 
 ### MVP (~11 สัปดาห์)
 | Milestone | ระยะเวลาประมาณ | สิ่งที่ส่งมอบ |

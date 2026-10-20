@@ -5,6 +5,7 @@ namespace App\Services\Report;
 use App\Models\Dashboard;
 use App\Models\DashboardVersion;
 use App\Models\User;
+use App\Support\Audit;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -21,7 +22,7 @@ class DashboardService
      * @param  array<string, mixed>  $spec
      * @return array{0: ?DashboardVersion, 1: list<string>}
      */
-    public function saveVersion(Dashboard $dashboard, array $spec, User $user, string $source = 'user', ?string $note = null, ?array $summary = null): array
+    public function saveVersion(Dashboard $dashboard, array $spec, User $user, string $source = 'user', ?string $note = null, ?array $summary = null, bool $audit = true): array
     {
         $dataset = $dashboard->dataset;
         [$clean, $errors] = $this->validator->validate($spec, $dataset->columns()->get(), $dashboard->title);
@@ -51,6 +52,10 @@ class DashboardService
             return $version;
         });
 
+        if ($audit && $source === 'user') {
+            Audit::log('report.saved', $dashboard, ['version' => $version->version, 'note' => $note], user: $user, summary: $dashboard->title);
+        }
+
         return [$version, []];
     }
 
@@ -72,7 +77,8 @@ class DashboardService
 
     public function revert(Dashboard $dashboard, DashboardVersion $from, User $user): DashboardVersion
     {
-        [$version] = $this->saveVersion($dashboard, $from->spec, $user, 'user', 'ย้อนกลับไปเวอร์ชัน '.$from->version, $from->executive_summary);
+        [$version] = $this->saveVersion($dashboard, $from->spec, $user, 'user', 'ย้อนกลับไปเวอร์ชัน '.$from->version, $from->executive_summary, audit: false);
+        Audit::log('report.reverted', $dashboard, ['to_version' => $from->version, 'new_version' => $version->version], user: $user, summary: $dashboard->title);
 
         return $version;
     }

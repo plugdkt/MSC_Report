@@ -6,8 +6,10 @@ use App\Models\Dashboard;
 use App\Models\Export;
 use App\Services\Export\ExportException;
 use App\Services\Export\ExportService;
+use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -17,7 +19,7 @@ class ExportController extends Controller
 {
     public function store(Request $request, Dashboard $dashboard, ExportService $exports): RedirectResponse
     {
-        abort_unless($dashboard->user_id === $request->user()->id, 403);
+        Gate::authorize('export', $dashboard);
         $data = $request->validate([
             'target' => ['required', Rule::in(array_keys(ExportService::COMBOS))],
             'format' => ['required', Rule::in(['pdf', 'jpeg', 'png'])],
@@ -31,6 +33,8 @@ class ExportController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
+        Audit::log('export.created', $export, ['target' => $data['target'], 'format' => $data['format']], summary: $dashboard->title);
+
         return redirect()->route('exports.show', $export);
     }
 
@@ -43,7 +47,7 @@ class ExportController extends Controller
 
     public function retry(Request $request, Export $export, ExportService $exports): RedirectResponse
     {
-        abort_unless($export->user_id === $request->user()->id && $export->status === 'failed', 403);
+        Gate::authorize('retry', $export);
         $new = $exports->request($export->dashboard, $request->user(), $export->target, $export->format, $export->options ?? []);
 
         return redirect()->route('exports.show', $new);
@@ -53,6 +57,7 @@ class ExportController extends Controller
     {
         $this->authorizeView($request, $export);
         abort_unless($export->isReady() && $export->file_path && Storage::disk('local')->exists($export->file_path), 404, 'ไฟล์หมดอายุหรือไม่พบ');
+        Audit::log('export.downloaded', $export, ['filename' => $export->filename]);
 
         return Storage::disk('local')->download($export->file_path, $export->filename, [
             'Content-Type' => match ($export->format) {
@@ -63,6 +68,6 @@ class ExportController extends Controller
 
     private function authorizeView(Request $request, Export $export): void
     {
-        abort_unless($export->user_id === $request->user()->id || $request->user()->isAdmin(), 403);
+        Gate::authorize('view', $export);
     }
 }

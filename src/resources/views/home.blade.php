@@ -52,7 +52,27 @@
             </div>
         @endif
 
-        @if ($datasets->isEmpty())
+        @if ($shared->isNotEmpty())
+            <div class="card" style="margin-bottom:1.2rem">
+                <h2 style="font-size:1.2rem">แชร์ให้ฉัน <span class="badge">{{ $shared->count() }}</span></h2>
+                <div class="table-wrap">
+                    <table class="ds-table">
+                        <thead><tr><th>รายงาน</th><th>เจ้าของ</th><th>แชร์เมื่อ</th></tr></thead>
+                        <tbody>
+                            @foreach ($shared as $sd)
+                                <tr>
+                                    <td><a href="{{ route('dashboards.show', $sd) }}"><strong>{{ $sd->title }}</strong></a></td>
+                                    <td>{{ $sd->user->name }}<br><span class="muted" style="font-size:.88rem">{{ $sd->user->pos_name }}</span></td>
+                                    <td style="white-space:nowrap">{{ Thai::date($sd->pivot->created_at, true) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
+
+        @if ($datasets->isEmpty() && $dashboards->isEmpty())
             <div class="card empty">
                 <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></div>
                 <h2 style="font-size:1.3rem">ยังไม่มีรายงาน</h2>

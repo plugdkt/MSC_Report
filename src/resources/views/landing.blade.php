@@ -6,9 +6,7 @@
 <title>MSC Report — สรุปผลงานเป็นรายงานผู้บริหาร</title>
 <!-- Sarabun (Google Fonts) คือฟอนต์ตระกูลเดียวกับ TH Sarabun New ที่ปรับมาสำหรับหน้าจอ
      ตอนทำจริงให้เก็บไฟล์ฟอนต์ไว้ในโปรเจกต์ (public/fonts) ไม่โหลดจาก CDN -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('css/fonts.css') }}">
 <style>
   :root {
     /* สีหลัก — เปลี่ยนเป็นสีองค์กรได้ที่นี่ที่เดียว */
@@ -496,7 +494,7 @@
 <footer class="site">
   <div class="container">
     <span>© 2569 MSC Report</span>
-    <span>คณะวิทยาศาสตร์การแพทย์ มหาวิทยาลัยพะเยา</span>
+    <span>{{ \App\Support\Org::name() }}</span>
   </div>
 </footer>
 

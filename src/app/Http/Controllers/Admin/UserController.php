@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -30,7 +31,9 @@ class UserController extends Controller
             return back()->with('error', 'ไม่สามารถลดสิทธิ์หรือระงับบัญชีของตัวเองได้');
         }
 
+        $before = $user->only('role', 'is_active');
         $user->update($data);
+        Audit::log('admin.user_updated', $user, ['role' => $before['role'].' → '.$data['role'], 'active' => (int) $before['is_active'].' → '.(int) $data['is_active']], summary: $user->username);
 
         return back()->with('status', 'บันทึกสิทธิ์ของ '.$user->name.' แล้ว');
     }

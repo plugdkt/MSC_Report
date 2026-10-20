@@ -6,12 +6,13 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['username', 'sso_user_id', 'name', 'email', 'pos_name', 'div_name', 'role', 'is_active', 'last_login_at'])]
+#[Fillable(['username', 'sso_user_id', 'name', 'email', 'pos_name', 'div_name', 'role', 'is_active', 'ai_consent_at', 'last_login_at'])]
 #[Hidden(['remember_token'])]
 class User extends Authenticatable
 {
@@ -30,12 +31,18 @@ class User extends Authenticatable
         return [
             'is_active' => 'boolean',
             'last_login_at' => 'datetime',
+            'ai_consent_at' => 'datetime',
         ];
     }
 
     public function datasets(): HasMany
     {
         return $this->hasMany(Dataset::class);
+    }
+
+    public function sharedDashboards(): BelongsToMany
+    {
+        return $this->belongsToMany(Dashboard::class, 'shares')->withPivot('created_by')->withTimestamps();
     }
 
     public function aiCredential(): HasOne

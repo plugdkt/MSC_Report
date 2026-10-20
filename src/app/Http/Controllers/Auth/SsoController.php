@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\Auth\MedsciSsoClient;
 use App\Services\Auth\SsoException;
 use App\Services\Auth\UserProvisioner;
+use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -55,6 +56,8 @@ class SsoController extends Controller
         $token = trim((string) $request->query('token', ''));
 
         if ($state === '' || $savedState === '' || ! hash_equals($savedState, $state)) {
+            Audit::log('auth.login_failed', meta: ['reason' => 'state ไม่ตรง'], summary: 'สถานะคำขอไม่ถูกต้อง');
+
             return $this->fail('คำขอเข้าสู่ระบบไม่ถูกต้องหรือหมดอายุ กรุณาเริ่มเข้าสู่ระบบใหม่');
         }
 
@@ -66,6 +69,7 @@ class SsoController extends Controller
             $profile = $this->sso->verify($token);
         } catch (SsoException $e) {
             Log::warning('SSO verify failed', ['message' => $e->getMessage()]);
+            Audit::log('auth.login_failed', meta: ['reason' => 'ระบบกลางปฏิเสธโทเคน'], summary: $e->getMessage());
 
             return $this->fail($e->getMessage());
         }
@@ -103,6 +107,7 @@ class SsoController extends Controller
      */
     public function logout(Request $request): RedirectResponse
     {
+        Audit::log('auth.logout');
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
@@ -117,12 +122,15 @@ class SsoController extends Controller
     private function loginAs(Request $request, User $user): RedirectResponse
     {
         if (! $user->is_active) {
+            Audit::log('auth.login_failed', meta: ['reason' => 'บัญชีถูกระงับ'], user: $user, summary: $user->username);
+
             return $this->fail('บัญชีของคุณถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ');
         }
 
         Auth::login($user);
         $request->session()->regenerate();
         $user->forceFill(['last_login_at' => now()])->save();
+        Audit::log('auth.login', $user, user: $user);
 
         // redirect ออกจากหน้า callback ทันที เพื่อไม่ให้ token ค้างใน URL/History
         return redirect()->intended(route('home'));

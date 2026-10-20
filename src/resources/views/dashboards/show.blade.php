@@ -33,11 +33,12 @@
                     </form>
                     <a class="btn btn-ghost" href="{{ route('dashboards.versions', $dashboard) }}">ประวัติเวอร์ชัน</a>
                     <a class="btn btn-outline" href="{{ route('dashboards.edit', $dashboard) }}">✎ แก้ไข/จัดหน้า</a>
+                    <button class="btn btn-ghost" type="button" onclick="document.getElementById('share-dlg').showModal()">👥 แชร์{{ $shares->isNotEmpty() ? ' ('.$shares->count().')' : '' }}</button>
                 @endif
                 @if (! empty($spec['infographic']['enabled']))
                     <a class="btn btn-outline" href="{{ route('dashboards.infographic', $dashboard) }}">อินโฟกราฟิก 1 หน้า</a>
                 @endif
-                @if ($canEdit)
+                @can('export', $dashboard)
                     <details class="export-menu">
                         <summary class="btn btn-primary">⭳ ส่งออก ▾</summary>
                         <form class="export-list" method="POST" action="{{ route('dashboards.exports.store', $dashboard) }}">
@@ -63,9 +64,15 @@
                             <input type="hidden" name="format" value="pdf">
                         </form>
                     </details>
-                @endif
+                @endcan
             </div>
         </div>
+
+        @unless ($isOwner)
+            <div class="alert alert-ok" role="status" style="background:var(--primary-soft);color:var(--primary);border-color:#c9d6ec">
+                👁 เจ้าของรายงาน: <b>{{ $owner->name }}</b>{{ $owner->pos_name ? ' · '.$owner->pos_name : '' }} — คุณดูและส่งออกไฟล์ได้ แต่แก้ไขไม่ได้
+            </div>
+        @endunless
 
         @if (session('status'))<div class="alert alert-ok" role="status">{{ session('status') }}</div>@endif
         @if (session('error'))<div class="alert alert-error" role="alert">{{ session('error') }}</div>@endif
@@ -105,6 +112,31 @@
             </section>
         @endif
 
+        @if ($isOwner)
+            <dialog id="share-dlg" class="w-panel">
+                <h2 style="font-size:1.25rem;margin:0 0 .3rem">แชร์รายงานนี้</h2>
+                <p class="muted" style="margin:0 0 .8rem">ผู้รับดูรายงานและส่งออกไฟล์ได้ แต่แก้ไขไม่ได้ · เห็นเวอร์ชันล่าสุดเสมอ · ผู้รับต้องเคยเข้าสู่ระบบ MSC Report แล้ว</p>
+                <form method="POST" action="{{ route('dashboards.shares.store', $dashboard) }}" class="form-row" autocomplete="off">
+                    @csrf
+                    <label style="flex:1;min-width:15rem">พิมพ์ชื่อหรือ username ผู้รับ
+                        <input type="text" name="person" id="share-person" list="share-options" required maxlength="255" placeholder="เช่น สมใจ">
+                    </label>
+                    <datalist id="share-options"></datalist>
+                    <button class="btn btn-primary" type="submit">แชร์</button>
+                </form>
+                <h3 style="font-size:1.05rem;margin:1.2rem 0 .4rem">แชร์ให้แล้ว ({{ $shares->count() }})</h3>
+                @forelse ($shares as $sh)
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;border-top:1px solid var(--border);padding:.4rem 0">
+                        <span>{{ $sh->user->name }}<br><span class="muted" style="font-size:.85rem">{{ $sh->user->pos_name }} · {{ $sh->user->username }}</span></span>
+                        <form method="POST" action="{{ route('dashboards.shares.destroy', [$dashboard, $sh]) }}">@csrf @method('DELETE')<button class="btn btn-ghost" type="submit" style="min-height:2.2rem">ยกเลิก</button></form>
+                    </div>
+                @empty
+                    <p class="muted" style="margin:0">ยังไม่ได้แชร์ให้ใคร</p>
+                @endforelse
+                <div style="text-align:right;margin-top:1rem"><button class="btn btn-outline" type="button" onclick="this.closest('dialog').close()">ปิด</button></div>
+            </dialog>
+        @endif
+
         <div class="dash-board theme-{{ $spec['theme'] ?? 'org' }}" id="dash"></div>
     </div>
 </main>
@@ -129,6 +161,18 @@
     (document.fonts ? document.fonts.ready : Promise.resolve()).then(draw);
     window.addEventListener('resize', function () { items.forEach(function (it) { it.r && it.r.resize(); }); });
     document.addEventListener('click', function (e) { if (e.target.closest('.font-size button')) { setTimeout(draw, 30); } });
+    var person = document.getElementById('share-person'), opts = document.getElementById('share-options'), timer;
+    if (person) {
+        person.addEventListener('input', function () {
+            clearTimeout(timer);
+            if (person.value.trim().length < 2) { return; }
+            timer = setTimeout(function () {
+                fetch(@json(route('users.search')) + '?q=' + encodeURIComponent(person.value.trim()), { headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.json(); })
+                    .then(function (list) { opts.innerHTML = list.map(function (u) { return '<option value="' + MscDashboard.esc(u.value) + '" label="' + MscDashboard.esc(u.detail) + '">'; }).join(''); });
+            }, 250);
+        });
+    }
     document.querySelectorAll('form[data-busy]').forEach(function (f) { f.addEventListener('submit', function () { var b = f.querySelector('button'); b.disabled = true; b.textContent = f.dataset.busy; }); });
 })();
 </script>

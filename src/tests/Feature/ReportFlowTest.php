@@ -30,7 +30,7 @@ class ReportFlowTest extends TestCase
         parent::setUp();
         Storage::fake('local');
         $this->seed(CodeSetSeeder::class);
-        $this->user = User::factory()->create();
+        $this->user = User::factory()->create(['ai_consent_at' => now()]);
 
         $path = tempnam(sys_get_temp_dir(), 'wb').'.xlsx';
         BudgetWorkbook::create($path);

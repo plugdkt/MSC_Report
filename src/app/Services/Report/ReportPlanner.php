@@ -10,6 +10,8 @@ use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiRequest;
 use App\Services\Ai\AiResponse;
 use App\Services\Ai\JsonExtractor;
+use App\Support\Audit;
+use App\Support\Org;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -39,7 +41,7 @@ class ReportPlanner
     public function estimateClarifyTokens(ReportDraft|Dataset $target): int
     {
         $dataset = $target instanceof ReportDraft ? $target->dataset : $target;
-        $request = $this->prompts->clarify($this->profiles->build($dataset));
+        $request = $this->prompts->clarify($this->profiles->build($dataset, ! $target instanceof ReportDraft || $target->send_samples));
 
         return $request->estimatedInputTokens() + (int) config('ai.max_output_tokens.clarify') / 2;
     }
@@ -47,7 +49,7 @@ class ReportPlanner
     public function ask(ReportDraft $draft): void
     {
         $dataset = $draft->dataset;
-        $profile = $this->profiles->build($dataset);
+        $profile = $this->profiles->build($dataset, (bool) $draft->send_samples);
         $base = $this->ruleQuestions->build($profile);
 
         if ($draft->mode === 'ai') {
@@ -96,6 +98,8 @@ class ReportPlanner
 
         $spec['infographic'] ??= $this->infographics->suggest($dataset, $draft->user->div_name);
 
+        $spec['theme'] ??= Org::defaultTheme();
+
         $dashboard = DB::transaction(function () use ($draft, $dataset, $spec, $source, $answers) {
             $dashboard = Dashboard::create(['user_id' => $draft->user_id, 'title' => $spec['title'], 'dataset_id' => $dataset->id]);
             [$version, $errors] = $this->dashboards->saveVersion($dashboard, $spec, $draft->user, $source,
@@ -104,6 +108,7 @@ class ReportPlanner
                 throw new \RuntimeException(implode('; ', $errors));
             }
             $draft->fill(['answers' => $answers, 'dashboard_id' => $dashboard->id])->save();
+            Audit::log('report.created', $dashboard, ['source' => $source], user: $draft->user, summary: $spec['title']);
 
             return $dashboard;
         });

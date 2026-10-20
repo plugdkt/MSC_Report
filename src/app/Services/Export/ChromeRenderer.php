@@ -71,6 +71,17 @@ class ChromeRenderer
      * @param  callable(Page): T  $work
      * @return T
      */
+    /**
+     * ให้ Chrome แปลงชื่อเฉพาะ host ภายในที่อนุญาต — ที่เหลือใช้งานไม่ได้ (ป้องกัน SSRF)
+     */
+    private function hostLockFlag(): string
+    {
+        $internal = parse_url((string) config('export.internal_url'), PHP_URL_HOST);
+        $hosts = array_unique(array_filter([...config('export.chrome_allowed_hosts', []), $internal]));
+
+        return '--host-resolver-rules=MAP * ~NOTFOUND , '.implode(' , ', array_map(fn ($h) => 'EXCLUDE '.$h, $hosts));
+    }
+
     private function withPage(string $url, array $window, callable $work): mixed
     {
         $profile = sys_get_temp_dir().DIRECTORY_SEPARATOR.'msc-chrome-'.bin2hex(random_bytes(6));
@@ -85,7 +96,7 @@ class ChromeRenderer
                 'userDataDir' => $profile,
                 'startupTimeout' => 30,
                 'sendSyncDefaultTimeout' => $this->timeoutMs(),
-                'customFlags' => ['--disable-gpu', '--disable-dev-shm-usage', '--hide-scrollbars', '--font-render-hinting=none', '--disable-extensions', '--no-first-run'],
+                'customFlags' => [$this->hostLockFlag(), '--disable-gpu', '--disable-dev-shm-usage', '--hide-scrollbars', '--font-render-hinting=none', '--disable-extensions', '--no-first-run'],
             ]);
             $page = $browser->createPage();
             $page->setViewport($window[0], $window[1])->await();

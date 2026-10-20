@@ -69,8 +69,33 @@ class SpreadsheetReader
         return $grid;
     }
 
+    /**
+     * กัน zip bomb: ไฟล์ .xlsx ที่แตกแล้วใหญ่ผิดปกติ หรือมีไฟล์ย่อยมากเกินไป จะไม่ถูกเปิด
+     */
+    private function guardArchive(string $path): void
+    {
+        if (! class_exists(\ZipArchive::class) || strtolower(pathinfo($path, PATHINFO_EXTENSION)) === 'csv') {
+            return;
+        }
+        $zip = new \ZipArchive;
+        if ($zip->open($path) !== true) {
+            return; // ไม่ใช่ zip (เช่น .xls/.csv) — ให้ reader ตัดสินเอง
+        }
+        $total = 0;
+        $count = $zip->numFiles;
+        for ($i = 0; $i < $count; $i++) {
+            $total += (int) ($zip->statIndex($i)['size'] ?? 0);
+        }
+        $zip->close();
+        if ($count > (int) config('import.max_zip_entries') || $total > (int) config('import.max_uncompressed_mb') * 1048576) {
+            throw new ImportException('ไฟล์มีขนาดหลังแตกออกใหญ่ผิดปกติ จึงไม่สามารถนำเข้าได้');
+        }
+    }
+
     private function load(string $path): Spreadsheet
     {
+        $this->guardArchive($path);
+
         try {
             $reader = IOFactory::createReaderForFile($path);
             if ($reader instanceof Csv) {

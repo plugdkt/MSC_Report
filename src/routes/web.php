@@ -1,7 +1,10 @@
 <?php
 
 use App\Http\Controllers\Admin\AiSettingsController;
+use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\CodeSetController;
+use App\Http\Controllers\Admin\OverviewController;
+use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\SsoController;
 use App\Http\Controllers\DashboardController;
@@ -12,12 +15,13 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MyAiController;
 use App\Http\Controllers\RenderController;
 use App\Http\Controllers\ReportDraftController;
+use App\Http\Controllers\ShareController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'landing'])->name('landing');
 
 // หน้า render สำหรับ Headless Chrome — ลิงก์ลงนามอายุ 5 นาที ไม่ต้องล็อกอิน
-Route::middleware('signed')->prefix('render')->name('render.')->group(function () {
+Route::middleware(['signed', 'render.local'])->prefix('render')->name('render.')->group(function () {
     Route::get('/{version}/report', [RenderController::class, 'report'])->name('report');
     Route::get('/{version}/infographic', [RenderController::class, 'infographic'])->name('infographic');
     Route::get('/{version}/dashboard', [RenderController::class, 'dashboard'])->name('dashboard');
@@ -27,7 +31,7 @@ Route::middleware('signed')->prefix('render')->name('render.')->group(function (
 Route::middleware('guest')->group(function () {
     Route::get('/login', [SsoController::class, 'showLogin'])->name('login');
     Route::get('/auth/sso', [SsoController::class, 'redirect'])->name('sso.redirect');
-    Route::get('/auth/sso/callback', [SsoController::class, 'callback'])->name('sso.callback');
+    Route::get('/auth/sso/callback', [SsoController::class, 'callback'])->name('sso.callback')->middleware('throttle:30,1');
     Route::post('/auth/dev-login', [SsoController::class, 'devLogin'])->name('dev.login');
 });
 
@@ -36,7 +40,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [SsoController::class, 'logout'])->name('logout');
 
     Route::get('/datasets/create', [DatasetController::class, 'create'])->name('datasets.create');
-    Route::post('/datasets', [DatasetController::class, 'store'])->name('datasets.store');
+    Route::post('/datasets', [DatasetController::class, 'store'])->name('datasets.store')->middleware('throttle:30,10');
     Route::get('/datasets/{dataset}', [DatasetController::class, 'show'])->name('datasets.show');
     Route::get('/datasets/{dataset}/sheets', [DatasetController::class, 'sheets'])->name('datasets.sheets');
     Route::post('/datasets/{dataset}/import', [DatasetController::class, 'import'])->name('datasets.import');
@@ -45,9 +49,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/datasets/{dataset}/excel-template', [ExcelTemplateController::class, 'fromDataset'])->name('datasets.excel-template');
 
     Route::get('/excel-templates', [ExcelTemplateController::class, 'index'])->name('excel-templates.index');
-    Route::post('/datasets/{dataset}/drafts', [ReportDraftController::class, 'start'])->name('drafts.start');
+    Route::post('/datasets/{dataset}/drafts', [ReportDraftController::class, 'start'])->name('drafts.start')->middleware('throttle:20,10');
     Route::get('/drafts/{draft}', [ReportDraftController::class, 'show'])->name('drafts.show');
-    Route::post('/drafts/{draft}/answers', [ReportDraftController::class, 'answer'])->name('drafts.answer');
+    Route::post('/drafts/{draft}/answers', [ReportDraftController::class, 'answer'])->name('drafts.answer')->middleware('throttle:20,10');
     Route::post('/drafts/{draft}/retry', [ReportDraftController::class, 'retry'])->name('drafts.retry');
     Route::get('/dashboards/{dashboard}', [DashboardController::class, 'show'])->name('dashboards.show');
     Route::get('/dashboards/{dashboard}/edit', [DashboardController::class, 'edit'])->name('dashboards.edit');
@@ -62,6 +66,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/dashboards/{dashboard}/image', [DashboardController::class, 'uploadImage'])->name('dashboards.image.upload');
     Route::get('/dashboards/{dashboard}/image', [DashboardController::class, 'image'])->name('dashboards.image');
     Route::post('/dashboards/{dashboard}/exports', [ExportController::class, 'store'])->name('dashboards.exports.store')->middleware('throttle:20,10');
+    Route::post('/dashboards/{dashboard}/shares', [ShareController::class, 'store'])->name('dashboards.shares.store')->middleware('throttle:30,10');
+    Route::delete('/dashboards/{dashboard}/shares/{share}', [ShareController::class, 'destroy'])->name('dashboards.shares.destroy');
+    Route::get('/users/search', [ShareController::class, 'search'])->name('users.search')->middleware('throttle:60,1');
     Route::get('/exports/{export}', [ExportController::class, 'show'])->name('exports.show');
     Route::post('/exports/{export}/retry', [ExportController::class, 'retry'])->name('exports.retry');
     Route::get('/exports/{export}/download', [ExportController::class, 'download'])->name('exports.download');
@@ -73,6 +80,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/excel-templates/{key}/download', [ExcelTemplateController::class, 'download'])->name('excel-templates.download');
 
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/', [OverviewController::class, 'index'])->name('overview');
+        Route::get('/audit', [AuditController::class, 'index'])->name('audit.index');
+        Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
+        Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
         Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
 
