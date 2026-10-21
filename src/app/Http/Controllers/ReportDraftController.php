@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\BuildReportJob;
 use App\Jobs\GeneratePlanJob;
 use App\Jobs\GenerateQuestionsJob;
 use App\Models\Dataset;
 use App\Models\ReportDraft;
 use App\Services\Ai\AiGateway;
+use App\Services\Report\AggregationEngine;
+use App\Services\Report\DatasetProfile;
 use App\Services\Report\ReportPlanner;
 use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
@@ -40,6 +43,7 @@ class ReportDraftController extends Controller
             'estimate' => app(ReportPlanner::class)->estimatePlanTokens($dataset),
             'source' => $availability['source'],
             'examples' => $this->examples($dataset),
+            'insights' => array_slice(app(DatasetProfile::class)->insights($dataset)['insights'], 0, 8),
         ]);
     }
 
@@ -107,7 +111,57 @@ class ReportDraftController extends Controller
             return redirect()->route('dashboards.show', $draft->dashboard_id);
         }
 
-        return view('drafts.show', ['draft' => $draft, 'dataset' => $draft->dataset]);
+        $review = null;
+        if ($draft->status === 'review' && $draft->planned_spec) {
+            $spec = array_diff_key($draft->planned_spec, ['_source' => 1, '_insights_used' => 1, 'infographic' => 1]);
+            $used = $draft->planned_spec['_insights_used'] ?? [];
+            $review = [
+                'spec' => $spec,
+                'computed' => app(AggregationEngine::class)->compute($draft->dataset, $spec),
+                'source' => $draft->planned_spec['_source'] ?? 'ai',
+                // ซ่อนข้อสังเกตที่อยู่ในแผนแล้ว (อ้างด้วย from หรือสูตรเดียวกัน)
+                'extra' => collect(app(DatasetProfile::class)->insights($draft->dataset)['insights'])
+                    ->reject(fn ($i) => in_array($i['id'], $used, true) || in_array($this->signature($i['widget']), array_map(fn ($w) => $this->signature($w), $spec['widgets']), true))
+                    ->values(),
+            ];
+        }
+
+        return view('drafts.show', ['draft' => $draft, 'dataset' => $draft->dataset, 'review' => $review]);
+    }
+
+    /**
+     * ยืนยันแผน → สร้างรายงานจริง (เฉพาะส่วนที่เลือก + ข้อสังเกตที่ติ๊กเพิ่ม)
+     */
+    public function approve(Request $request, ReportDraft $draft): RedirectResponse
+    {
+        $this->authorizeDraft($draft);
+        abort_unless($draft->status === 'review', 409);
+        $data = $request->validate(['keep' => ['nullable', 'array'], 'keep.*' => ['string', 'max:40'], 'add' => ['nullable', 'array'], 'add.*' => ['string', 'max:10']]);
+        if (empty($data['keep']) && empty($data['add'])) {
+            return back()->with('error', 'เลือกอย่างน้อย 1 ส่วนที่ต้องการในรายงาน');
+        }
+
+        $draft->update(['status' => 'building', 'error_message' => null]);
+        BuildReportJob::dispatch($draft->id, array_values($data['keep'] ?? []), array_values($data['add'] ?? []));
+
+        return redirect()->route('drafts.show', $draft);
+    }
+
+    /**
+     * ขอให้ AI ปรับแผนตามข้อความ (ยังไม่สร้างรายงาน)
+     */
+    public function revise(Request $request, ReportDraft $draft): RedirectResponse
+    {
+        $this->authorizeDraft($draft);
+        abort_unless($draft->status === 'review' && $draft->mode === 'ai', 409);
+        $data = $request->validate(['instruction' => ['required', 'string', 'min:5', 'max:800']], [
+            'instruction.required' => 'กรุณาพิมพ์สิ่งที่อยากให้ปรับ', 'instruction.min' => 'กรุณาอธิบายให้ชัดขึ้นอีกนิด',
+        ]);
+
+        $draft->update(['instruction' => trim($data['instruction']), 'status' => 'planning', 'error_message' => null]);
+        GeneratePlanJob::dispatch($draft->id, $draft->answers ?? []);
+
+        return redirect()->route('drafts.show', $draft);
     }
 
     public function answer(Request $request, ReportDraft $draft): RedirectResponse
@@ -150,6 +204,18 @@ class ReportDraftController extends Controller
         }
 
         return redirect()->route('drafts.show', $draft);
+    }
+
+    /**
+     * ลายเซ็นของ widget (ชนิด + สูตร + มิติ + ตัวกรอง) ใช้เทียบว่าซ้ำกันไหม
+     *
+     * @param  array<string, mixed>  $w
+     */
+    private function signature(array $w): string
+    {
+        $m = $w['measures'] ?? (isset($w['measure']) ? [$w['measure']] : []);
+
+        return md5(json_encode([in_array($w['type'], ['kpi', 'gauge'], true) ? 'single' : 'chart', $m, $w['dimension'] ?? null, $w['filters'] ?? []]));
     }
 
     private function authorizeDraft(ReportDraft $draft): void

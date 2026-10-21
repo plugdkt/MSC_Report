@@ -6,6 +6,7 @@ use App\Models\Dataset;
 use App\Models\DatasetColumn;
 use App\Services\CodeLookup;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * สรุปโครงสร้างข้อมูลแบบย่อสำหรับ AI และตัววางแผนแบบไม่ใช้ AI:
@@ -15,7 +16,22 @@ class DatasetProfile
 {
     private const TOP_VALUES = 8;
 
-    public function __construct(private readonly CodeLookup $codes) {}
+    public function __construct(
+        private readonly CodeLookup $codes,
+        private readonly InsightFinder $finder,
+    ) {}
+
+    /**
+     * ข้อสังเกตจากข้อมูล (คำนวณครั้งเดียวต่อเวอร์ชันของข้อมูล แล้วเก็บ cache)
+     *
+     * @return array{structure: ?array<string, mixed>, insights: list<array{id: string, text: string, widget: array<string, mixed>}>}
+     */
+    public function insights(Dataset $dataset): array
+    {
+        $key = 'insights.'.$dataset->id.'.'.$dataset->updated_at?->timestamp.'.'.$dataset->columns()->max('updated_at');
+
+        return Cache::remember($key, now()->addDay(), fn () => $this->finder->find($dataset));
+    }
 
     /**
      * @return array<string, mixed>
@@ -33,7 +49,20 @@ class DatasetProfile
             ]),
             'columns' => $columns->map(fn (DatasetColumn $c) => $this->column($c))->values()->all(),
             'samples' => $withSamples ? $this->samples($dataset, $columns) : [],
-        ];
+        ] + $this->insightPart($dataset);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function insightPart(Dataset $dataset): array
+    {
+        $found = $this->insights($dataset);
+
+        return array_filter([
+            'structure' => $found['structure']['text'] ?? null,
+            'insights' => array_map(fn ($i) => $i['id'].': '.$i['text'], $found['insights']),
+        ]);
     }
 
     /**

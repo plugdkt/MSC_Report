@@ -113,8 +113,119 @@ class ReportPlanner
             }
         }
 
-        $spec['infographic'] = $this->infographics->forSpec($dataset, $spec, $draft->user->div_name);
+        // โหมดอธิบายอิสระ: ให้ผู้ใช้ตรวจแผนก่อนสร้างจริง
+        if ($draft->kind === 'create' && $draft->brief !== null) {
+            $draft->fill(['answers' => $answers, 'planned_spec' => $spec + ['_source' => $source], 'status' => 'review'])->save();
 
+            return null;
+        }
+
+        return $this->createDashboard($draft, array_diff_key($spec, ['_insights_used' => 1]), $source, $answers);
+    }
+
+    /**
+     * สร้างรายงานจากแผนที่ผู้ใช้ตรวจแล้ว: เก็บเฉพาะ widget ที่เลือก + ข้อสังเกตที่ติ๊กเพิ่ม
+     *
+     * @param  list<string>  $keep
+     * @param  list<string>  $add  id ของ insight ที่ต้องการเพิ่ม
+     */
+    public function build(ReportDraft $draft, array $keep, array $add = []): Dashboard
+    {
+        $planned = $draft->planned_spec;
+        $source = $planned['_source'] ?? 'ai';
+        $spec = array_diff_key($planned, ['_source' => 1, '_insights_used' => 1]);
+        $spec['widgets'] = array_values(array_filter($spec['widgets'], fn ($w) => in_array($w['id'], $keep, true)));
+
+        $insights = collect($this->profiles->insights($draft->dataset)['insights'])->keyBy('id');
+        foreach ($add as $id) {
+            if ($insights->has($id)) {
+                $spec['widgets'][] = ['id' => 'x'.$id] + $insights[$id]['widget'];
+            }
+        }
+        $spec['widgets'] = array_map(fn ($w) => array_diff_key($w, ['layout' => 1]), $spec['widgets']);
+
+        [$clean, $errors] = $this->specValidator->validate($spec, $draft->dataset->columns()->get(), $spec['title'] ?? 'รายงาน');
+        if ($clean === [] || $clean['widgets'] === []) {
+            throw new \RuntimeException($errors ? implode('; ', $errors) : 'ไม่ได้เลือกส่วนใดไว้เลย');
+        }
+
+        return $this->createDashboard($draft, $clean, $source, $draft->answers ?? []);
+    }
+
+    /**
+     * ปรับแผน (ก่อนสร้างรายงาน) ตามคำสั่งข้อความของผู้ใช้ แล้วกลับไปให้ตรวจอีกครั้ง
+     */
+    public function revisePlan(ReportDraft $draft): void
+    {
+        $dataset = $draft->dataset;
+        $columns = $dataset->columns()->get();
+        $planned = $draft->planned_spec;
+        $current = array_diff_key($planned, ['_source' => 1, '_insights_used' => 1, 'infographic' => 1]);
+        $current['widgets'] = array_map(fn ($w) => array_diff_key($w, ['layout' => 1]), $current['widgets']);
+        $profile = $this->profiles->build($dataset, withSamples: false);
+
+        $request = $this->prompts->refine($profile, $current, (string) $draft->instruction);
+        [$data, $response, $request] = $this->callWithRepair($draft, $request, function (?array $data) use ($columns, $current, $dataset) {
+            [$spec, $errors] = $this->specValidator->validate($this->expandInsights($data, $dataset), $columns, $current['title']);
+
+            return $spec === [] || $spec['widgets'] === [] ? ($errors ?: ['ไม่มี widget ที่ใช้ได้']) : $errors;
+        });
+        [$spec] = $this->specValidator->validate($this->expandInsights($data, $dataset), $columns, $current['title']);
+        $this->ai->storeCache($request, $response);
+
+        $draft->fill(['planned_spec' => $spec + ['_source' => 'ai', '_insights_used' => $this->usedInsights($data, $dataset)], 'status' => 'review', 'instruction' => null])->save();
+    }
+
+    /**
+     * แทน widget ที่ AI อ้าง {"from":"iN"} ด้วย widget ที่ระบบเตรียมไว้ (คง id/หัวข้อ/purpose ที่ AI ให้มา)
+     *
+     * @param  array<string, mixed>|null  $data
+     * @return array<string, mixed>|null
+     */
+    public function expandInsights(?array $data, Dataset $dataset): ?array
+    {
+        if (! is_array($data) || ! is_array($data['widgets'] ?? null)) {
+            return $data;
+        }
+        $insights = collect($this->profiles->insights($dataset)['insights'])->keyBy('id');
+        // อ้าง insight ที่ไม่มีอยู่ → ตัดทิ้งเงียบ ๆ (ไม่ต้องให้ AI แก้ซ้ำให้เสีย token)
+        $widgets = array_filter($data['widgets'], fn ($w) => ! is_array($w) || ! isset($w['from']) || (is_string($w['from']) && $insights->has($w['from'])));
+        $data['widgets'] = array_values(array_map(function ($w) use ($insights) {
+            if (! is_array($w) || ! isset($w['from'])) {
+                return $w;
+            }
+            $base = $insights[$w['from']]['widget'];
+
+            return array_filter([
+                'id' => $w['id'] ?? null,
+                'title' => is_string($w['title'] ?? null) && trim($w['title']) !== '' ? $w['title'] : null,
+                'purpose' => $w['purpose'] ?? null,
+            ], fn ($v) => $v !== null) + $base;
+        }, $widgets));
+
+        return $data;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $data
+     * @return list<string>
+     */
+    private function usedInsights(?array $data, Dataset $dataset): array
+    {
+        $known = array_column($this->profiles->insights($dataset)['insights'], 'id');
+        $used = array_map(fn ($w) => is_array($w) ? ($w['from'] ?? null) : null, (array) ($data['widgets'] ?? []));
+
+        return array_values(array_unique(array_intersect($used, $known)));
+    }
+
+    /**
+     * @param  array<string, mixed>  $spec  spec ที่ผ่าน SpecValidator แล้ว
+     * @param  array<string, mixed>  $answers
+     */
+    private function createDashboard(ReportDraft $draft, array $spec, string $source, array $answers): Dashboard
+    {
+        $dataset = $draft->dataset;
+        $spec['infographic'] = $this->infographics->forSpec($dataset, $spec, $draft->user->div_name);
         $spec['theme'] ??= Org::defaultTheme();
 
         $dashboard = DB::transaction(function () use ($draft, $dataset, $spec, $source, $answers) {
@@ -172,11 +283,11 @@ class ReportPlanner
         $request = $this->prompts->plan($profile, [...$this->describeBrief($draft), ...$this->describeAnswers($draft->questions ?? [], $answers)], $canClarify);
         $ids = array_column($profile['columns'], 'id');
 
-        [$data, $response, $request] = $this->callWithRepair($draft, $request, function (?array $data) use ($columns, $defaultTitle, $canClarify, $ids) {
+        [$data, $response, $request] = $this->callWithRepair($draft, $request, function (?array $data) use ($draft, $columns, $defaultTitle, $canClarify, $ids) {
             if ($canClarify && isset($data['need_clarification'])) {
                 return $this->questionValidator->validate(['questions' => $data['need_clarification']['questions'] ?? null], $ids, 1)[1];
             }
-            [$spec, $errors] = $this->specValidator->validate($data, $columns, $defaultTitle);
+            [$spec, $errors] = $this->specValidator->validate($this->expandInsights($data, $draft->dataset), $columns, $defaultTitle);
 
             return $spec === [] || $spec['widgets'] === [] ? ($errors ?: ['ไม่มี widget ที่ใช้ได้']) : $errors;
         });
@@ -187,10 +298,10 @@ class ReportPlanner
             return ['clarify' => $questions, 'understanding' => is_string($data['understanding'] ?? null) ? mb_substr($data['understanding'], 0, 500) : null];
         }
 
-        [$spec] = $this->specValidator->validate($data, $columns, $defaultTitle);
+        [$spec] = $this->specValidator->validate($this->expandInsights($data, $draft->dataset), $columns, $defaultTitle);
         $this->ai->storeCache($request, $response);
 
-        return $spec;
+        return $spec + ['_insights_used' => $this->usedInsights($data, $draft->dataset)];
     }
 
     /**
@@ -219,12 +330,13 @@ class ReportPlanner
         $forAi = ['title' => $old['title'], 'subtitle' => $old['subtitle'] ?? null, 'widgets' => array_map(fn ($w) => array_diff_key($w, ['layout' => 1]), $old['widgets'])];
         $request = $this->prompts->refine($this->profiles->build($dataset, withSamples: false), $forAi, (string) $draft->brief);
 
-        [$data, $response, $request] = $this->callWithRepair($draft, $request, function (?array $data) use ($columns, $dashboard) {
-            [$spec, $errors] = $this->specValidator->validate($data, $columns, $dashboard->title);
+        [$data, $response, $request] = $this->callWithRepair($draft, $request, function (?array $data) use ($columns, $dashboard, $dataset) {
+            [$spec, $errors] = $this->specValidator->validate($this->expandInsights($data, $dataset), $columns, $dashboard->title);
 
             return $spec === [] || $spec['widgets'] === [] ? ($errors ?: ['ไม่มี widget ที่ใช้ได้']) : $errors;
         });
 
+        $data = $this->expandInsights($data, $dataset);
         // คงตำแหน่งเดิมของ widget ที่ยังอยู่ (ถ้าครบทุกชิ้น) — มิฉะนั้นให้ระบบจัดใหม่
         $oldLayout = collect($old['widgets'])->pluck('layout', 'id');
         $data['widgets'] = array_map(fn ($w) => is_array($w) && isset($w['id'], $oldLayout[$w['id']]) && ! isset($w['layout']) ? $w + ['layout' => $oldLayout[$w['id']]] : $w, $data['widgets']);

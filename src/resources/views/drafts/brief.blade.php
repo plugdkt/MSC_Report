@@ -29,6 +29,17 @@
                 </div>
             @endif
 
+            @if ($insights)
+                <div>
+                    <div class="muted" style="margin-bottom:.4rem">ข้อสังเกตที่ระบบพบในข้อมูล — กดเพื่อใส่ลงในคำอธิบายว่าอยากให้แสดง:</div>
+                    <div style="display:grid;gap:.4rem">
+                        @foreach ($insights as $ins)
+                            <button type="button" class="btn btn-ghost" style="justify-content:flex-start;text-align:left;min-height:2.2rem;padding:.3rem .9rem;font-size:.95rem;white-space:normal" data-insight="{{ $ins['text'] }}">＋ {{ $ins['text'] }}</button>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
             @if ($needConsent)
                 <div style="background:var(--accent-soft);border:1px solid #f3d9a5;border-radius:10px;padding:.9rem 1rem">
                     <b>ก่อนใช้ AI ครั้งแรก — สิ่งที่ระบบส่งให้ AI ภายในองค์กร</b>
@@ -60,6 +71,14 @@
     </div>
 </main>
 <script>
+    document.querySelectorAll('[data-insight]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            var t = document.getElementById('brief');
+            t.value = (t.value.trim() ? t.value.trim() + '\n' : '') + '- อยากเห็น: ' + b.dataset.insight;
+            b.disabled = true;
+            t.focus();
+        });
+    });
     document.querySelectorAll('[data-example]').forEach(function (b) {
         b.addEventListener('click', function () {
             var t = document.getElementById('brief');

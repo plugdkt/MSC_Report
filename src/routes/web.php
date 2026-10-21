@@ -53,6 +53,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/datasets/{dataset}/drafts', [ReportDraftController::class, 'start'])->name('drafts.start')->middleware('throttle:20,10');
     Route::get('/drafts/{draft}', [ReportDraftController::class, 'show'])->name('drafts.show');
     Route::post('/drafts/{draft}/answers', [ReportDraftController::class, 'answer'])->name('drafts.answer')->middleware('throttle:20,10');
+    Route::post('/drafts/{draft}/approve', [ReportDraftController::class, 'approve'])->name('drafts.approve');
+    Route::post('/drafts/{draft}/revise', [ReportDraftController::class, 'revise'])->name('drafts.revise')->middleware('throttle:20,10');
     Route::post('/drafts/{draft}/retry', [ReportDraftController::class, 'retry'])->name('drafts.retry');
     Route::get('/dashboards/{dashboard}', [DashboardController::class, 'show'])->name('dashboards.show');
     Route::get('/dashboards/{dashboard}/edit', [DashboardController::class, 'edit'])->name('dashboards.edit');

@@ -114,6 +114,9 @@ class SpecValidator
             'type' => $type,
             'title' => is_string($w['title'] ?? null) && trim($w['title']) !== '' ? mb_substr(trim($w['title']), 0, 150) : 'ส่วนที่ '.$n,
         ];
+        if (is_string($w['purpose'] ?? null) && trim($w['purpose']) !== '') {
+            $out['purpose'] = mb_substr(trim($w['purpose']), 0, 150);
+        }
 
         $measures = [];
         if (isset($w['measures']) && is_array($w['measures'])) {

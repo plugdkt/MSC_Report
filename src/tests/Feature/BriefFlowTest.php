@@ -89,6 +89,18 @@ class BriefFlowTest extends TestCase
         }]);
     }
 
+    /**
+     * ยืนยันแผนทุกส่วน (ขั้นตรวจแผนก่อนสร้าง)
+     */
+    private function approveAll(ReportDraft $draft): ReportDraft
+    {
+        $this->assertSame('review', $draft->fresh()->status);
+        $keep = array_column($draft->fresh()->planned_spec['widgets'], 'id');
+        $this->actingAs($this->user)->post(route('drafts.approve', $draft), ['keep' => $keep])->assertRedirect(route('drafts.show', $draft));
+
+        return $draft->fresh();
+    }
+
     private function planRequests(): array
     {
         return Http::recorded()->map(fn ($pair) => $pair[0])->filter(fn (Request $r) => preg_match('/งาน: (ออกแบบ|ปรับ) Dashboard/u', $r['messages'][0]['content']))->values()->all();
@@ -126,6 +138,9 @@ class BriefFlowTest extends TestCase
         $draft = ReportDraft::firstOrFail();
         $this->assertSame($brief, $draft->brief);
         $this->assertFalse($draft->send_samples);
+        $this->assertSame('review', $draft->status);
+        $this->assertNull($draft->dashboard_id, 'ยังไม่สร้างรายงานจนกว่าผู้ใช้ยืนยันแผน');
+        $draft = $this->approveAll($draft);
         $this->assertSame('done', $draft->status);
         $this->assertNull($draft->questions);
 
@@ -147,7 +162,7 @@ class BriefFlowTest extends TestCase
         $this->actingAs($this->user)->post(route('drafts.start', $this->dataset), ['mode' => 'ai', 'brief' => ''])->assertRedirect();
 
         $draft = ReportDraft::firstOrFail();
-        $this->assertSame('done', $draft->status);
+        $this->assertSame('review', $draft->status);
         $plan = $this->planRequests()[0];
         $this->assertStringNotContainsString('need_clarification', $plan['messages'][0]['content']);
         $this->assertStringContainsString('ไม่ได้ระบุ', json_encode($plan['messages'], JSON_UNESCAPED_UNICODE));
@@ -172,7 +187,7 @@ class BriefFlowTest extends TestCase
         $this->actingAs($this->user)->post(route('drafts.answer', $draft), ['answers' => ['which' => 'used']])->assertRedirect();
 
         $draft->refresh();
-        $this->assertSame('done', $draft->status);
+        $this->assertSame('review', $draft->status);
         $plans = $this->planRequests();
         $this->assertCount(2, $plans);
         $this->assertStringNotContainsString('need_clarification', $plans[1]['messages'][0]['content'], 'ถามเพิ่มได้ครั้งเดียว');
@@ -185,6 +200,8 @@ class BriefFlowTest extends TestCase
         $this->actingAs($this->user)->post(route('drafts.start', $this->dataset), ['mode' => 'ai', 'brief' => 'สรุปให้หน่อย'])->assertRedirect();
 
         $draft = ReportDraft::firstOrFail();
+        $this->assertSame('rule', $draft->planned_spec['_source']);
+        $draft = $this->approveAll($draft);
         $this->assertSame('done', $draft->status);
         $this->assertSame('rule', Dashboard::findOrFail($draft->dashboard_id)->currentVersion->source);
         $this->assertNotEmpty($draft->notices);
@@ -194,6 +211,7 @@ class BriefFlowTest extends TestCase
     {
         $this->fakeAi([$this->planSpec()]);
         $this->actingAs($this->user)->post(route('drafts.start', $this->dataset), ['mode' => 'ai', 'brief' => 'สรุป']);
+        $this->approveAll(ReportDraft::firstOrFail());
         $dashboard = Dashboard::firstOrFail();
         $before = $dashboard->currentVersion;
 
@@ -223,6 +241,7 @@ class BriefFlowTest extends TestCase
     {
         $this->fakeAi([$this->planSpec()]);
         $this->actingAs($this->user)->post(route('drafts.start', $this->dataset), ['mode' => 'ai', 'brief' => 'สรุป']);
+        $this->approveAll(ReportDraft::firstOrFail());
         $dashboard = Dashboard::firstOrFail();
 
         $other = User::factory()->create(['ai_consent_at' => now()]);
@@ -241,6 +260,7 @@ class BriefFlowTest extends TestCase
     {
         $this->fakeAi([$this->planSpec()]);
         $this->actingAs($this->user)->post(route('drafts.start', $this->dataset), ['mode' => 'ai', 'brief' => 'สรุป']);
+        $this->approveAll(ReportDraft::firstOrFail());
         $dashboard = Dashboard::firstOrFail();
         $version = $dashboard->current_version_id;
 

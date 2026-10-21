@@ -1,8 +1,8 @@
 @extends('layouts.app')
 
-@section('title', 'ตอบคำถามก่อนสรุป')
+@section('title', $draft->status === 'review' ? 'ตรวจแผนรายงาน' : ($draft->kind === 'refine' ? 'ปรับรายงาน' : 'สร้างรายงาน'))
 
-@if (in_array($draft->status, ['asking', 'planning'], true))
+@if (in_array($draft->status, ['asking', 'planning', 'building'], true))
     @push('head')<meta http-equiv="refresh" content="2">@endpush
 @endif
 
@@ -25,9 +25,17 @@
         @elseif ($draft->status === 'planning')
             <div class="card empty">
                 <div class="spinner" aria-hidden="true"></div>
-                <h1 style="font-size:1.4rem">{{ $draft->kind === 'refine' ? 'AI กำลังปรับรายงานตามที่บอก…' : ($draft->mode === 'ai' ? 'AI กำลังออกแบบรายงาน…' : 'กำลังสร้างรายงาน…') }}</h1>
+                <h1 style="font-size:1.4rem">{{ $draft->kind === 'refine' ? 'AI กำลังปรับรายงานตามที่บอก…' : ($draft->instruction ? 'AI กำลังปรับแผนตามที่บอก…' : ($draft->mode === 'ai' ? 'AI กำลังออกแบบแผนรายงาน…' : 'กำลังสร้างรายงาน…')) }}</h1>
                 <p class="muted">ตัวเลขทุกตัวคำนวณจากข้อมูลจริงในระบบ</p>
             </div>
+        @elseif ($draft->status === 'building')
+            <div class="card empty">
+                <div class="spinner" aria-hidden="true"></div>
+                <h1 style="font-size:1.4rem">กำลังสร้างรายงานและเขียนบทสรุปผู้บริหาร…</h1>
+                <p class="muted">ตัวเลขทุกตัวคำนวณจากข้อมูลจริงในระบบ</p>
+            </div>
+        @elseif ($draft->status === 'review' && $review)
+            @include('drafts._review')
         @elseif ($draft->status === 'failed')
             <div class="alert alert-error" role="alert">{{ $draft->error_message }}</div>
             <div style="display:flex;gap:.6rem;flex-wrap:wrap">

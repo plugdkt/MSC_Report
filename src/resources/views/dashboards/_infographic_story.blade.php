@@ -26,7 +26,7 @@
                 @continue
             @endif
             <section class="ig2-block {{ $wide ? 'span2' : '' }}">
-                @php $blockTitle = $b['title'] ?? ($b['data']['title'] ?? null) @endphp
+                @php $blockTitle = $b['title'] ?? ($b['data']['title'] ?? ($b['type'] === 'highlights' ? 'ประเด็นสำคัญสำหรับผู้บริหาร' : null)) @endphp
                 @if ($blockTitle && $b['type'] !== 'kpis')<h3>{{ $blockTitle }}</h3>@endif
 
                 @if ($b['type'] === 'kpis')

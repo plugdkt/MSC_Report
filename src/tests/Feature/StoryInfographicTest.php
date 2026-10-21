@@ -77,7 +77,10 @@ class StoryInfographicTest extends TestCase
         Http::fake([self::AI_URL => fn (Request $r) => str_contains($r['messages'][0]['content'] ?? '', 'บทสรุปสำหรับผู้บริหาร') ? self::chat(['summary' => []]) : self::chat($spec)]);
         $this->actingAs($this->user)->post(route('drafts.start', $this->dataset), ['mode' => 'ai', 'brief' => 'สรุปให้หน่อย'])->assertRedirect();
 
-        return Dashboard::findOrFail(ReportDraft::firstOrFail()->dashboard_id);
+        $draft = ReportDraft::firstOrFail();
+        $this->actingAs($this->user)->post(route('drafts.approve', $draft), ['keep' => array_column($draft->planned_spec['widgets'], 'id')]);
+
+        return Dashboard::findOrFail($draft->fresh()->dashboard_id);
     }
 
     public function test_ai_designed_story_is_validated_and_numbers_come_from_system(): void
